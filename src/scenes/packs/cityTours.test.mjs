@@ -135,6 +135,28 @@ test('every stop names a known move and travel mode, and legs stay walkable-shor
   }
 });
 
+test('callouts sit near their stop and are words the narrator will actually say', () => {
+  let total = 0;
+  for (const tour of CITY_TOURS) {
+    for (const stop of tour.stops) {
+      for (const callout of stop.callouts || []) {
+        total += 1;
+        assert.ok(haversineM(callout, stop) < 1500, `${stop.id}/${callout.label} is far from the stop`);
+        const words = callout.say?.length ? callout.say : [callout.label];
+        const story = stop.story.toLowerCase();
+        assert.ok(
+          words.some((word) => story.includes(word.toLowerCase())),
+          `${stop.id}/${callout.label}: none of ${words.join('/')} appear in the story`,
+        );
+      }
+    }
+  }
+  assert.ok(total >= 10);
+  const pantheon = cityTourStory(CITY_TOURS[0].id, 'The Pantheon');
+  assert.equal(pantheon.holdSec, 18);
+  assert.deepEqual(pantheon.callouts[0], { label: 'Oculus', lat: 41.8986, lon: 12.4769, alt: 118, say: ['oculus'] });
+});
+
 test('shot framings realise their moves as distinct arrival and end poses', () => {
   const stop = { rangeM: 600, heading: 90, pitch: -24 };
   const orbit = shotFraming({ ...stop, shot: 'orbit' });

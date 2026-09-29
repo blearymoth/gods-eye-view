@@ -62,6 +62,9 @@ export const TRAVEL_MODES = Object.freeze({
  * @property {keyof SHOT_TYPES} [shot]  Cinematic move; cycles when omitted.
  * @property {{ mode: keyof TRAVEL_MODES, story?: string }} [travel]
  *   How we got here from the previous stop; drawn as a route on the map.
+ * @property {{ label: string, lat: number, lon: number, heightM?: number, say?: string[] }[]} [callouts]
+ *   Places the story points at. Marked on the map during the stop and lit
+ *   up when the narrator says one of their `say` words (default: the label).
  * @property {string} story         One or two sentences for caption/narration.
  */
 
@@ -95,6 +98,10 @@ export const CITY_TOURS = Object.freeze([
     stops: [
       {
         id: 'colosseum',
+        callouts: [
+          { label: 'Arena floor', lat: 41.8902, lon: 12.4922, heightM: 30, say: ['floor'] },
+          { label: 'Arch of Constantine', lat: 41.8898, lon: 12.4907, heightM: 25, say: ['Constantine'] },
+        ],
         shot: 'orbit',
         title: 'The Colosseum',
         lat: 41.8902,
@@ -105,7 +112,7 @@ export const CITY_TOURS = Object.freeze([
         heightM: 52,
         holdSec: 18,
         story:
-          "The Flavian amphitheatre. Vespasian built it on Nero's lake as a gift back to the city. Titus opened it in 80 AD. Under the floor, cages and ramps. The scars in the stone are later Rome quarrying it for palaces.",
+          "The Flavian amphitheatre. Vespasian built it on Nero's lake as a gift back to the city. Titus opened it in 80 AD. Under the floor, cages and ramps. The scars in the stone are later Rome quarrying it for palaces. The Arch of Constantine stands at its gate.",
       },
       {
         id: 'arch-of-titus',
@@ -166,6 +173,10 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'pantheon',
+        callouts: [
+          { label: 'Oculus', lat: 41.8986, lon: 12.4769, heightM: 48, say: ['oculus'] },
+          { label: 'Piazza della Rotonda', lat: 41.899, lon: 12.4767, heightM: 10, say: ['piazza', 'fountain'] },
+        ],
         shot: 'crane',
         travel: {
           mode: 'foot',
@@ -181,7 +192,7 @@ export const CITY_TOURS = Object.freeze([
         heightM: 48,
         holdSec: 18,
         story:
-          "Hadrian's rebuild, about 126 AD. Largest unreinforced concrete dome on Earth. The oculus is the only light. Temple to all gods, then a church — which is why it is still standing.",
+          "Hadrian's rebuild, about 126 AD. Largest unreinforced concrete dome on Earth. The oculus is the only light. Temple to all gods, then a church — which is why it is still standing. The fountain in the piazza came fifteen centuries later.",
       },
     ],
   },
@@ -202,6 +213,10 @@ export const CITY_TOURS = Object.freeze([
     stops: [
       {
         id: 'eiffel',
+        callouts: [
+          { label: 'Champ de Mars', lat: 48.8556, lon: 2.2986, heightM: 10, say: ['Champ de Mars'] },
+          { label: 'Trocadéro', lat: 48.862, lon: 2.288, heightM: 30, say: ['Trocadéro'] },
+        ],
         shot: 'orbit',
         title: 'Eiffel Tower',
         lat: 48.8584,
@@ -212,7 +227,7 @@ export const CITY_TOURS = Object.freeze([
         heightM: 150,
         holdSec: 16,
         story:
-          'The Eiffel Tower. Gustave Eiffel raised it for the 1889 Exposition — three hundred thirty metres of iron meant to be temporary. Paris kept it.',
+          'The Eiffel Tower. Gustave Eiffel raised it for the 1889 Exposition — three hundred thirty metres of iron meant to be temporary. Paris kept it. The Champ de Mars runs from its feet; the Trocadéro faces it across the river.',
       },
       {
         id: 'arc',
@@ -235,6 +250,9 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'louvre',
+        callouts: [
+          { label: 'Glass pyramid', lat: 48.861, lon: 2.3358, heightM: 21, say: ['pyramid'] },
+        ],
         shot: 'pushIn',
         travel: {
           mode: 'car',
@@ -254,6 +272,9 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'notre-dame',
+        callouts: [
+          { label: 'Spire', lat: 48.853, lon: 2.3499, heightM: 96, say: ['spire'] },
+        ],
         shot: 'truck',
         travel: {
           mode: 'foot',
@@ -323,6 +344,10 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'senso-ji',
+        callouts: [
+          { label: 'Nakamise street', lat: 35.7128, lon: 139.7966, heightM: 12, say: ['Nakamise'] },
+          { label: 'Kaminarimon gate', lat: 35.7107, lon: 139.7967, heightM: 12, say: ['gate'] },
+        ],
         shot: 'pushIn',
         travel: {
           mode: 'rail',
@@ -378,6 +403,9 @@ export const CITY_TOURS = Object.freeze([
     stops: [
       {
         id: 'tower-bridge',
+        callouts: [
+          { label: 'Tower of London', lat: 51.5081, lon: -0.0759, heightM: 27, say: ['Tower of London'] },
+        ],
         shot: 'orbit',
         title: 'Tower Bridge',
         lat: 51.5055,
@@ -411,6 +439,10 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'westminster',
+        callouts: [
+          { label: 'Elizabeth Tower', lat: 51.5007, lon: -0.1246, heightM: 96, say: ['Elizabeth Tower', 'Big Ben'] },
+          { label: 'Westminster Abbey', lat: 51.4993, lon: -0.1273, heightM: 40, say: ['Abbey'] },
+        ],
         shot: 'truck',
         travel: {
           mode: 'rail',
@@ -426,7 +458,7 @@ export const CITY_TOURS = Object.freeze([
         heightM: 96,
         holdSec: 16,
         story:
-          'Parliament, rebuilt after an 1834 fire. The clock tower is the Elizabeth Tower; Big Ben is the bell inside it, first rung in 1859.',
+          'Parliament, rebuilt after an 1834 fire. The clock tower is the Elizabeth Tower; Big Ben is the bell inside it, first rung in 1859. Westminster Abbey sits across the square.',
       },
       {
         id: 'buckingham',
@@ -583,6 +615,14 @@ export function cityTourStory(sceneId, shotTitle) {
       title: stop.title,
       story: stop.story,
       shot: shotFraming(stop, index).label,
+      holdSec: Math.max(4, stop.holdSec || 14),
+      callouts: (stop.callouts || []).map((callout) => ({
+        label: callout.label,
+        lat: callout.lat,
+        lon: callout.lon,
+        alt: (tour.groundEllipsoidM || 0) + (callout.heightM ?? 20),
+        say: callout.say?.length ? [...callout.say] : [callout.label],
+      })),
     };
   }
   const travelIndex = tour.stops.findIndex((entry) => travelShotTitle(entry) === shotTitle);

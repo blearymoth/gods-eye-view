@@ -51,6 +51,13 @@ through the list so neighbours never repeat.
 | `birdsEye` | steep −56° view from 1.7× range, orbiting |
 | `lowAngle` | −14° view from 0.78× range, orbiting |
 
+`callouts` on a stop are the places its story points at: `{ label, lat,
+lon, heightM?, say? }`. They are marked on the map for the whole stop and
+each lights up when the narrator says one of its `say` words (the label by
+default), read from the voice transcript. Without a voice session they light
+in order, spread across the move. The test suite checks that every callout's
+words appear in the stop's story, so the narrator will actually say them.
+
 `travel` on a stop says how you got there from the previous one: `foot`,
 `bike`, `car` (a real route from `/api/route`, drawn on the map during the
 arrival flight) or `rail` (a straight dashed line). The first stop is always
@@ -67,8 +74,18 @@ document. `src/scenes/packs/cityTourPresenter.js` subscribes to Director run
 events. When a tour shot starts it shows the beat's story in a caption
 (`#city-tour-caption`), draws the leg's route for travel beats (all legs are
 prefetched when the tour begins), reports 3D-tile buffering as a progress
-bar until 80% of the view's requested tiles are in, and, if a voice session
-is open, sends the story to the realtime agent as a `tour_beat` item.
+bar until 80% of the view's requested tiles are in, marks the stop's
+callouts, and, if a voice session is open, sends the story to the realtime
+agent as a `tour_beat` item.
+
+Buffering is enforced, not just shown: the presenter registers a Director
+**shot hold gate** (`SceneDirector.registerShotHoldGate`) that keeps the
+approach and every arrival shot holding until 80% of that view's tiles are
+in, up to 12 s, so a stop's camera move starts over loaded tiles. Stops are
+never gated. Cesium can only load tiles for the view it is rendering, so a
+"two beats ahead" buffer is not possible without a second renderer; the gate
+plus `preloadFlightDestinations` (tiles for the flight's end load during the
+flight) is the practical equivalent.
 
 When a tour starts, every data layer that is on is parked (turned off with
 the `scene` origin, so the user's saved layer state is untouched) and turned

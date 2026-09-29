@@ -12,7 +12,10 @@
   the caption shows a buffering bar until 80% of the view's tiles are in, and
   the tileset preloads flight destinations and coarsens distant tiles while a
   tour runs. Data layers that were on are parked for the tour and restored
-  when it ends.
+  when it ends. Arrivals hold until 80% of the view's tiles are in (a new
+  Director shot hold gate, up to 12 s) so moves never start over half-loaded
+  tiles, and each stop's callouts are marked on the map and light up as the
+  narrator says them.
 - Guided city tours of Rome, Paris, Tokyo and London as bundled Director
   scenes (`src/scenes/packs/cityTours.js`), generated from landmark stops with
   a caption and optional voice narration per stop. See `docs/CITY-TOURS.md`.

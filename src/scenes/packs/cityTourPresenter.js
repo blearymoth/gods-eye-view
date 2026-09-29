@@ -8,6 +8,10 @@
  *   `/api/route`, or a straight dashed line for rail), prefetched when the
  *   tour starts so the line is there the moment the flight begins,
  * - reports 3D-tile buffering as a progress bar until the view is mostly in,
+ *   and holds the arrival pose (a Director hold gate) until it is, so the
+ *   move never starts over half-loaded tiles,
+ * - marks the stop's callouts on the map and lights each one up as the
+ *   narrator says it (from the voice transcript; timed when voice is off),
  * - hands the story to an open voice session as a `tour_beat` item.
  * While a tour runs the photoreal tileset is tuned to load the destination
  * during the flight and to spend less on distant tiles, and every data layer
@@ -23,6 +27,12 @@ export const CITY_TOUR_CAPTION_ID = 'city-tour-caption';
 export const CITY_TOUR_ROUTE_ENTITY_ID = 'city-tour:route';
 /** A view counts as ready once this share of the tiles it asked for is in. */
 export const CITY_TOUR_READY_RATIO = 0.8;
+/** Tile requests for a new view take a moment to be issued; wait at least this long. */
+export const CITY_TOUR_GATE_SETTLE_MS = 600;
+/** Longest an arrival waits for its tiles before the move starts anyway. */
+export const CITY_TOUR_GATE_MAX_WAIT_MS = 12_000;
+/** Entity id prefix for a stop's callout markers. */
+export const CITY_TOUR_CALLOUT_PREFIX = 'city-tour:callout:';
 
 /** Route colour per travel mode (cyan family, matching the Directions layer). */
 const ROUTE_COLORS = Object.freeze({
@@ -85,6 +95,17 @@ export function legGeometry(leg, route) {
   ];
 }
 
+/** Index of the first unspoken callout whose words the transcript now contains. */
+export function spokenCalloutIndex(callouts, transcript, spoken = new Set()) {
+  const heard = String(transcript || '').toLowerCase();
+  if (!heard) return -1;
+  return callouts.findIndex(
+    (callout, index) =>
+      !spoken.has(index) &&
+      callout.say.some((word) => heard.includes(String(word).toLowerCase())),
+  );
+}
+
 /** Share of requested tiles that have arrived since a view began loading. */
 export function bufferingProgress(pending, peak) {
   if (!peak || pending <= 0) return 1;
@@ -130,6 +151,13 @@ export function installCityTourPresenter({
   let tuningRestore = null;
   let pendingPeak = 0;
   let lastPending = 0;
+  let shotStartedAt = 0;
+  /** @type {{ entity: object, callout: object }[]} */
+  let calloutMarks = [];
+  const spokenCallouts = new Set();
+  let transcript = '';
+  let voiceUnsubscribe = null;
+  let calloutTimers = [];
   /** Layer ids that were on when the tour began. @type {string[]|null} */
   let parkedLayers = null;
   /** @type {Map<string, Promise<object|null>>} */
@@ -154,6 +182,20 @@ export function installCityTourPresenter({
   };
   const removeTileProgress =
     tileset?.tileLoadProgressEvent?.addEventListener?.(onTileProgress) || null;
+
+  // Arrival and approach shots hold until the view is mostly buffered, so the
+  // stop's move plays over loaded tiles. Stops themselves are never gated.
+  const gate = (scene, shot) => {
+    if (!tileset || scene?.id !== activeTour) return null;
+    const beat = cityTourStory(scene.id, shot?.title);
+    if (!beat || beat.kind === 'stop') return null;
+    const settling = Date.now() - shotStartedAt < CITY_TOUR_GATE_SETTLE_MS;
+    return {
+      pending: settling || bufferingProgress(lastPending, pendingPeak) < CITY_TOUR_READY_RATIO,
+      maxWaitMs: CITY_TOUR_GATE_MAX_WAIT_MS,
+    };
+  };
+  const removeGate = director.registerShotHoldGate?.(gate) || null;
 
   const applyTuning = () => {
     if (!tileset || tuningRestore) return;
@@ -189,6 +231,97 @@ export function installCityTourPresenter({
     for (const id of ids) {
       void Promise.resolve(dataManager.setEnabled(id, true, { origin: 'scene' })).catch(() => {});
     }
+  };
+
+  const styleCallout = (mark, lit) => {
+    const { entity } = mark;
+    if (!entity?.point) return;
+    entity.point.pixelSize = lit ? 13 : 8;
+    entity.point.color = Cesium.Color.fromCssColorString(lit ? '#ffffff' : '#39d0ff').withAlpha(lit ? 1 : 0.6);
+    if (entity.label) {
+      entity.label.scale = lit ? 1.15 : 0.9;
+      entity.label.fillColor = Cesium.Color.fromCssColorString(lit ? '#ffffff' : '#bff4ff');
+    }
+  };
+
+  const lightCallout = (index) => {
+    if (index < 0 || index >= calloutMarks.length || spokenCallouts.has(index)) return;
+    spokenCallouts.add(index);
+    calloutMarks.forEach((mark, i) => styleCallout(mark, i === index));
+  };
+
+  const clearCallouts = () => {
+    for (const timer of calloutTimers) clearTimeout(timer);
+    calloutTimers = [];
+    if (viewer?.entities) for (const { entity } of calloutMarks) viewer.entities.remove(entity);
+    calloutMarks = [];
+    spokenCallouts.clear();
+    transcript = '';
+  };
+
+  const drawCallouts = (beat) => {
+    clearCallouts();
+    if (!viewer?.entities || !Cesium || !beat.callouts?.length) return;
+    calloutMarks = beat.callouts.map((callout, index) => ({
+      callout,
+      entity: viewer.entities.add({
+        id: `${CITY_TOUR_CALLOUT_PREFIX}${index}`,
+        position: Cesium.Cartesian3.fromDegrees(callout.lon, callout.lat, callout.alt),
+        point: {
+          pixelSize: 8,
+          color: Cesium.Color.fromCssColorString('#39d0ff').withAlpha(0.6),
+          outlineColor: Cesium.Color.BLACK.withAlpha(0.6),
+          outlineWidth: 1,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+        label: {
+          text: callout.label,
+          font: '12px "JetBrains Mono", monospace',
+          fillColor: Cesium.Color.fromCssColorString('#bff4ff'),
+          showBackground: true,
+          backgroundColor: Cesium.Color.fromCssColorString('#060a10').withAlpha(0.7),
+          pixelOffset: new Cesium.Cartesian2(0, -18),
+          scale: 0.9,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      }),
+    }));
+    // Without a narrator, walk the callouts on a timer spread over the move.
+    if (!getVoice()?.session?.isActive?.()) {
+      const step = (beat.holdSec * 1000) / (calloutMarks.length + 1);
+      calloutMarks.forEach((_, index) => {
+        calloutTimers.push(setTimeout(() => lightCallout(index), Math.round(step * (index + 1))));
+      });
+    }
+  };
+
+  // The narrator's transcript arrives as deltas; a callout lights when its
+  // words have been said. A finished response resets the running text.
+  const onVoiceEvent = (event) => {
+    if (event?.type !== 'transcript' || event.role !== 'assistant') return;
+    if (event.final) {
+      transcript = '';
+      return;
+    }
+    transcript += event.text || '';
+    if (!calloutMarks.length) return;
+    let index = spokenCalloutIndex(calloutMarks.map((mark) => mark.callout), transcript, spokenCallouts);
+    while (index >= 0) {
+      lightCallout(index);
+      index = spokenCalloutIndex(calloutMarks.map((mark) => mark.callout), transcript, spokenCallouts);
+    }
+  };
+
+  const listenToVoice = () => {
+    if (voiceUnsubscribe) return;
+    const session = getVoice()?.session;
+    if (typeof session?.subscribe !== 'function') return;
+    voiceUnsubscribe = session.subscribe(onVoiceEvent);
+  };
+
+  const stopListeningToVoice = () => {
+    voiceUnsubscribe?.();
+    voiceUnsubscribe = null;
   };
 
   const clearRoute = () => {
@@ -265,6 +398,8 @@ export function installCityTourPresenter({
     caption.hidden = true;
     caption.classList.remove('visible');
     clearRoute();
+    clearCallouts();
+    stopListeningToVoice();
     hideLoading();
     restoreTuning();
     restoreLayers();
@@ -277,11 +412,13 @@ export function installCityTourPresenter({
       activeTour = sceneId;
       applyTuning();
       parkLayers();
+      listenToVoice();
       prefetchLegs(sceneId);
     }
     const key = `${sceneId}\n${beat.title}`;
     if (shown === key) return;
     shown = key;
+    shotStartedAt = Date.now();
     // Every new view starts its own buffering measure.
     pendingPeak = lastPending;
     hideLoading();
@@ -294,6 +431,8 @@ export function installCityTourPresenter({
     caption.classList.add('visible');
     if (beat.kind === 'travel' && beat.from) void drawLeg(beat, key);
     else if (beat.kind !== 'stop') clearRoute();
+    if (beat.kind === 'stop') drawCallouts(beat);
+    else clearCallouts();
     narrate(beat);
   };
 
@@ -319,6 +458,7 @@ export function installCityTourPresenter({
 
   return () => {
     unsubscribe?.();
+    removeGate?.();
     removeTileProgress?.();
     endTour();
     caption.remove();

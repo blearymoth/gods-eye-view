@@ -5,8 +5,11 @@ import {
   bufferingProgress,
   legGeometry,
   legRouteUrl,
+  spokenCalloutIndex,
   CITY_TOUR_CAPTION_ID,
   CITY_TOUR_ROUTE_ENTITY_ID,
+  CITY_TOUR_CALLOUT_PREFIX,
+  CITY_TOUR_GATE_MAX_WAIT_MS,
 } from './cityTourPresenter.js';
 import { CITY_TOURS, travelShotTitle } from './cityTours.js';
 
@@ -34,11 +37,19 @@ function fakeElement() {
   return el;
 }
 
+const fakeColor = (css) => ({ css, withAlpha: (a) => ({ css, alpha: a }) });
 const FakeCesium = {
-  Color: {
-    fromCssColorString: (css) => ({ css, withAlpha: (a) => ({ css, alpha: a }) }),
+  Color: { fromCssColorString: fakeColor, BLACK: fakeColor('#000') },
+  Cartesian2: class {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+    }
   },
-  Cartesian3: { fromDegreesArray: (flat) => ({ flat }) },
+  Cartesian3: {
+    fromDegreesArray: (flat) => ({ flat }),
+    fromDegrees: (lon, lat, alt) => ({ lon, lat, alt }),
+  },
   PolylineDashMaterialProperty: class {
     constructor(options) {
       this.options = options;
@@ -55,9 +66,20 @@ function harness({ tileset = null, routePayload = null, dataManager = null } = {
   const responses = [];
   const fetched = [];
   let voiceActive = true;
+  const voiceListeners = new Set();
   const voice = {
-    session: { isActive: () => voiceActive, sendMapEvent: (event) => sent.push(event) },
+    session: {
+      isActive: () => voiceActive,
+      sendMapEvent: (event) => sent.push(event),
+      subscribe: (listener) => {
+        voiceListeners.add(listener);
+        return () => voiceListeners.delete(listener);
+      },
+    },
     queueResponseCreate: (text) => responses.push(text),
+  };
+  const speak = (text, final = false) => {
+    for (const listener of voiceListeners) listener({ type: 'transcript', role: 'assistant', text, final });
   };
   const entities = [];
   const viewer = {
@@ -72,11 +94,16 @@ function harness({ tileset = null, routePayload = null, dataManager = null } = {
       },
     },
   };
+  const gates = new Set();
   const director = {
     subscribe(listener) {
       listener({ state: {}, change: null, revision: 0, initial: true });
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    registerShotHoldGate(gate) {
+      gates.add(gate);
+      return () => gates.delete(gate);
     },
   };
   const dispose = installCityTourPresenter({
@@ -98,7 +125,8 @@ function harness({ tileset = null, routePayload = null, dataManager = null } = {
   };
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
   return {
-    caption, sent, responses, fetched, entities, emit, dispose, settle, listeners,
+    caption, sent, responses, fetched, entities, emit, dispose, settle, listeners, gates, speak,
+    voiceListeners,
     setVoice: (v) => (voiceActive = v),
   };
 }
@@ -249,6 +277,74 @@ test('enabled layers are parked for the tour and restored when it ends', () => {
   assert.deepEqual([...enabled].sort(), ['flights', 'traffic']);
   h.emit('scene_run_complete', {});
   assert.equal(calls.length, 4, 'restoring twice is a no-op');
+});
+
+test('arrivals hold until the view is mostly buffered, stops are never gated', async () => {
+  const tileset = fakeTileset();
+  const h = harness({ tileset });
+  assert.equal(h.gates.size, 1);
+  const [gate] = h.gates;
+  const scene = { id: rome.id };
+  assert.equal(gate({ id: 'flights-radar' }, { title: 'Shot 1' }), null, 'other scenes are not gated');
+  h.emit('shot_start', { sceneId: rome.id, title: travelShotTitle(arch), index: 3 });
+  const arrival = { title: travelShotTitle(arch) };
+  let state = gate(scene, arrival);
+  assert.equal(state.pending, true, 'requests have not been issued yet: keep holding');
+  assert.equal(state.maxWaitMs, CITY_TOUR_GATE_MAX_WAIT_MS);
+  await new Promise((resolve) => setTimeout(resolve, 650));
+  tileset.report(40);
+  assert.equal(gate(scene, arrival).pending, true);
+  tileset.report(6);
+  assert.equal(gate(scene, arrival).pending, false, '85% in: release the hold');
+  assert.equal(gate(scene, { title: arch.title }), null, 'the stop itself plays at once');
+  h.dispose();
+  assert.equal(h.gates.size, 0);
+});
+
+test('callouts are marked at a stop and light up as the narrator says them', () => {
+  const h = harness();
+  const pantheon = rome.stops[4];
+  h.emit('shot_start', { sceneId: rome.id, title: 'Approaching Rome', index: 0 });
+  assert.equal(h.voiceListeners.size, 1, 'the tour listens to the narrator');
+  h.emit('shot_start', { sceneId: rome.id, title: pantheon.title, index: 10 });
+  const marks = h.entities.filter((entity) => entity.id.startsWith(CITY_TOUR_CALLOUT_PREFIX));
+  assert.equal(marks.length, 2);
+  assert.equal(marks[0].label.text, 'Oculus');
+  assert.equal(marks[0].position.alt, 118);
+  assert.equal(marks[0].point.pixelSize, 8);
+  h.speak('Hadrian\'s rebuild. The ocu');
+  assert.equal(marks[0].point.pixelSize, 8, 'half a word is not a mention');
+  h.speak('lus is the only light.');
+  assert.equal(marks[0].point.pixelSize, 13, 'the oculus lit when said');
+  assert.equal(marks[1].point.pixelSize, 8);
+  h.speak(' The fountain in the piazza came later.', false);
+  assert.equal(marks[1].point.pixelSize, 13);
+  assert.equal(marks[0].point.pixelSize, 8, 'only the current callout is lit');
+  h.speak('', true);
+  h.emit('scene_run_complete', {});
+  assert.equal(h.entities.filter((entity) => entity.id.startsWith(CITY_TOUR_CALLOUT_PREFIX)).length, 0);
+  assert.equal(h.voiceListeners.size, 0);
+});
+
+test('spokenCalloutIndex matches whole say-words case-insensitively and skips spoken ones', () => {
+  const callouts = [{ say: ['Oculus'] }, { say: ['piazza', 'fountain'] }];
+  assert.equal(spokenCalloutIndex(callouts, ''), -1);
+  assert.equal(spokenCalloutIndex(callouts, 'the OCULUS above'), 0);
+  assert.equal(spokenCalloutIndex(callouts, 'the fountain'), 1);
+  assert.equal(spokenCalloutIndex(callouts, 'the oculus and the fountain', new Set([0])), 1);
+});
+
+test('without a narrator the callouts light on a timer over the move', async () => {
+  const h = harness();
+  h.setVoice(false);
+  const bridge = CITY_TOURS[3].stops[0];
+  h.emit('shot_start', { sceneId: CITY_TOURS[3].id, title: bridge.title, index: 2 });
+  const marks = h.entities.filter((entity) => entity.id.startsWith(CITY_TOUR_CALLOUT_PREFIX));
+  assert.equal(marks.length, 1);
+  assert.equal(marks[0].point.pixelSize, 8);
+  h.emit('scene_stopped', { reason: 'user' });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(h.entities.length, 0, 'stopping clears the timers and the marks');
 });
 
 test('non-tour scenes and voice-off runs are quiet', () => {
