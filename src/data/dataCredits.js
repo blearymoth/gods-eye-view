@@ -144,6 +144,13 @@ export const DATA_CREDITS = [
     html: 'Earthquakes: Data courtesy of the U.S. Geological Survey',
   },
   {
+    key: 'warscope',
+    html:
+      'Global conflict events: ' +
+      '<a href="https://warscope.net/api-docs" target="_blank" rel="noopener">WarScope</a> ' +
+      '(GDELT-backed reported events — verify with primary sources)',
+  },
+  {
     key: 'nasa-gibs',
     html:
       'Recent imagery: We acknowledge the use of imagery provided by services from ' +

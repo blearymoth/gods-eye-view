@@ -1,5 +1,9 @@
 # Changelog
 
+- WarScope Global Conflict Events data layer (`src/layers/warscope/`): GDELT-backed
+  event dots that become expandable text cards with outbound source links when
+  zoomed in, served through a fixed-host `/api/warscope/events` proxy.
+
 - Phone tab-shell for narrow viewports (`src/mobileShell.js`): a bottom tab bar
   (Search, Layers, Context, Display, Presets, More) that opens one panel sheet at
   a time under 720px; phones also use 1x MSAA and a 25s Google 3D Tiles deadline.

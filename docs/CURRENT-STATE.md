@@ -1,5 +1,15 @@
 # God's Eye View Current State
 
+## WarScope conflict events
+
+- `warscope-events` is a Data Layers toggle for global GDELT-backed conflict
+  points. The Vite middleware (`server/providers/warscope.js`) exposes only
+  `/api/warscope/events` against the fixed host `https://warscope.net`
+  (clamped query params, ~10 min memory cache, serve-stale, per-IP rate
+  limit). There is no `/api/warscope/preview` or `/api/warscope/image`.
+  Zoomed-in overlay cards expand to title, WarScope metadata, and an outbound
+  publisher source link. Code: `src/layers/warscope/`.
+
 ## Cyber HUD — September 23, 2026
 
 Display > HUD > Layout includes Cyber, also available through the HUD voice
