@@ -26,9 +26,13 @@ import {
   releaseContinuousRender,
   governorRequestRender,
 } from './renderGovernor.js';
+import { STYLES as STYLE_SHADERS } from './ui/visualPresets.js';
 
 const DEADZONE = 0.18;
-const STYLES = ['normal', 'retro', 'surveillance', 'thermal', 'anime', 'noir', 'snow'];
+/** D-pad style cycle: the plain globe first, then every shader preset. */
+const STYLES = ['normal', ...Object.keys(STYLE_SHADERS).filter((id) => id !== 'normal')];
+/** The help card retires itself after this long unless R3 brings it back. */
+export const DECK_HELP_AUTO_HIDE_MS = 15_000;
 
 /** localStorage key for the DISPLAY → Gamepad slider. */
 export const DECK_CONTROLS_STORAGE_KEY = 'gev-deck-controls';
@@ -233,6 +237,7 @@ export function initDeckControls(viewer, styleManager) {
   let rafId = 0;
   let lookMouseDX = 0;
   let lookMouseDY = 0;
+  let helpTimer = 0;
 
   const releasePointerLook = bindPointerLookFallback(
     canvas,
@@ -248,10 +253,24 @@ export function initDeckControls(viewer, styleManager) {
     document.body.classList.toggle('deck-help-hidden', connected && enabled && !helpVisible);
   };
 
+  const scheduleHelpAutoHide = () => {
+    clearTimeout(helpTimer);
+    helpTimer = setTimeout(() => {
+      helpVisible = false;
+      syncHelpVisibility();
+    }, DECK_HELP_AUTO_HIDE_MS);
+  };
+
   const setConnected = (active) => {
+    const was = connected;
     connected = active && enabled;
     document.body.classList.toggle('deck-controls-active', connected);
     reticle.hidden = !connected;
+    if (connected && !was) {
+      helpVisible = true;
+      scheduleHelpAutoHide();
+    }
+    if (!connected) clearTimeout(helpTimer);
     syncHelpVisibility();
   };
 
@@ -281,6 +300,7 @@ export function initDeckControls(viewer, styleManager) {
       if (pads.some((pad) => pad?.connected)) {
         syncStyleIndex();
         setConnected(true);
+        startPolling();
       }
     }
   };
@@ -298,6 +318,7 @@ export function initDeckControls(viewer, styleManager) {
 
   const toggleHelpPanel = () => {
     helpVisible = !helpVisible;
+    clearTimeout(helpTimer);
     syncHelpVisibility();
   };
 
@@ -341,10 +362,7 @@ export function initDeckControls(viewer, styleManager) {
     const r2 = triggerValue(gamepad.buttons, BTN.R2);
 
     const moved = lx || ly || rx || ry || l2 > 0.08 || r2 > 0.08;
-    if (moved) {
-      interruptCameraMotion('manual-input');
-      requestCanvasPointerLock(canvas);
-    }
+    if (moved) interruptCameraMotion('manual-input');
 
     if (ly) camera.moveForward(moveRate * ly);
     if (lx) camera.moveRight(moveRate * lx);
@@ -377,8 +395,12 @@ export function initDeckControls(viewer, styleManager) {
     const { buttons } = gamepad;
 
     if (buttonPressed(BTN.A, buttons, prevButtons)) {
-      if (!isPointerLockedToCanvas(canvas)) requestCanvasPointerLock(canvas);
-      else simulateCenterClick(viewer);
+      // Select first: gamepad input is not a user gesture, so a pointer-lock
+      // request can be refused forever on plain controllers. The lock only
+      // matters for Steam Deck profiles that route the right stick through
+      // the mouse, and it is requested here rather than on every stick frame.
+      simulateCenterClick(viewer);
+      requestCanvasPointerLock(canvas);
     }
     if (buttonPressed(BTN.B, buttons, prevButtons)) dispatchKey('Escape');
     if (buttonPressed(BTN.X, buttons, prevButtons)) dispatchKey('c');
@@ -409,7 +431,10 @@ export function initDeckControls(viewer, styleManager) {
     if (buttonPressed(BTN.DPAD_RIGHT, buttons, prevButtons)) dispatchKey('v');
   };
 
+  // The poll loop runs only while a pad is present and the scheme is on; an
+  // idle page must not burn a requestAnimationFrame tick per frame forever.
   const poll = () => {
+    rafId = 0;
     const pads = navigator.getGamepads?.() || [];
     const gamepad = pads.find((pad) => pad?.connected) || null;
     const now = performance.now();
@@ -422,7 +447,10 @@ export function initDeckControls(viewer, styleManager) {
         setConnected(false);
       }
       prevButtons = [];
-      rafId = requestAnimationFrame(poll);
+      if (cameraActive) {
+        releaseContinuousRender('deck-controls');
+        cameraActive = false;
+      }
       return;
     }
 
@@ -437,10 +465,17 @@ export function initDeckControls(viewer, styleManager) {
     rafId = requestAnimationFrame(poll);
   };
 
+  const startPolling = () => {
+    if (rafId) return;
+    lastFrameMs = performance.now();
+    rafId = requestAnimationFrame(poll);
+  };
+
   const onGamepadConnected = () => {
     if (!enabled) return;
     syncStyleIndex();
     setConnected(true);
+    startPolling();
   };
 
   const onGamepadDisconnected = () => {
@@ -465,10 +500,15 @@ export function initDeckControls(viewer, styleManager) {
   switchEl?.addEventListener('change', onSwitchChange);
   syncToggleUi();
 
-  rafId = requestAnimationFrame(poll);
+  // A pad plugged in before this page loaded reports no event until its
+  // first button press; polling once now catches the already-connected case.
+  if (enabled && (navigator.getGamepads?.() || []).some((pad) => pad?.connected)) {
+    startPolling();
+  }
 
   return () => {
-    cancelAnimationFrame(rafId);
+    if (rafId) cancelAnimationFrame(rafId);
+    clearTimeout(helpTimer);
     window.removeEventListener('gamepadconnected', onGamepadConnected);
     window.removeEventListener('gamepaddisconnected', onGamepadDisconnected);
     toggleBtn?.removeEventListener('click', onToggleClick);
