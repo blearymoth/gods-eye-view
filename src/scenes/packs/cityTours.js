@@ -16,10 +16,37 @@ const METRES_PER_DEG_LAT = 111_320;
 
 /** Seconds spent flying from one stop to the next. */
 const TRANSIT_SEC = 6;
-/** Seconds the arrival pose rests before the orbit begins. */
-const ARRIVAL_HOLD_SEC = 0.6;
-/** Degrees of heading the camera sweeps during a stop's orbit. */
+/** Seconds the arrival pose rests before the stop's move begins. */
+const ARRIVAL_HOLD_SEC = 0.8;
+/** Degrees of heading the camera sweeps during an orbit. */
 const ORBIT_SWEEP_DEG = 40;
+
+/**
+ * Cinematic moves a stop can ask for. Each one is realised as the pair of
+ * poses the Director eases between: the arrival pose and the end pose.
+ */
+export const SHOT_TYPES = Object.freeze({
+  orbit: { label: 'Orbit', sweep: ORBIT_SWEEP_DEG },
+  truck: { label: 'Truck', sweep: 18 },
+  crane: { label: 'Crane', pitchDelta: -10, rangeScale: 1.08 },
+  pushIn: { label: 'Push in', rangeScale: 0.62, pitchDelta: 4 },
+  pullOut: { label: 'Pull out', rangeScale: 1.55, pitchDelta: -6 },
+  lockOff: { label: 'Lock-off' },
+  birdsEye: { label: "Bird's eye", pitch: -56, rangeScale: 1.7, sweep: ORBIT_SWEEP_DEG },
+  lowAngle: { label: 'Low angle', pitch: -14, rangeScale: 0.78, sweep: 30 },
+});
+
+/** Stops that do not choose a move cycle through these, never the same twice in a row. */
+const DEFAULT_SHOT_CYCLE = ['orbit', 'pushIn', 'birdsEye', 'truck', 'crane', 'lowAngle', 'pullOut'];
+
+/** How to get from the previous stop, keyed by the `/api/route` profile (rail has none). */
+export const TRAVEL_MODES = Object.freeze({
+  foot: { verb: 'Walk', icon: '🚶', profile: 'foot' },
+  bike: { verb: 'Cycle', icon: '🚲', profile: 'bike' },
+  car: { verb: 'Drive', icon: '🚗', profile: 'car' },
+  rail: { verb: 'Ride', icon: '🚇', profile: null },
+  air: { verb: 'Fly', icon: '✈', profile: null },
+});
 
 /**
  * @typedef {object} CityTourStop
@@ -31,7 +58,10 @@ const ORBIT_SWEEP_DEG = 40;
  * @property {number} heading       Direction the camera LOOKS (degrees).
  * @property {number} pitch         Camera pitch (negative looks down).
  * @property {number} [heightM=40]  Landmark height; the camera aims at half.
- * @property {number} [holdSec=14]  Orbit duration at this stop.
+ * @property {number} [holdSec=14]  Duration of the stop's camera move.
+ * @property {keyof SHOT_TYPES} [shot]  Cinematic move; cycles when omitted.
+ * @property {{ mode: keyof TRAVEL_MODES, story?: string }} [travel]
+ *   How we got here from the previous stop; drawn as a route on the map.
  * @property {string} story         One or two sentences for caption/narration.
  */
 
@@ -65,6 +95,7 @@ export const CITY_TOURS = Object.freeze([
     stops: [
       {
         id: 'colosseum',
+        shot: 'orbit',
         title: 'The Colosseum',
         lat: 41.8902,
         lon: 12.4922,
@@ -78,6 +109,12 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'arch-of-titus',
+        shot: 'pushIn',
+        travel: {
+          mode: 'foot',
+          story:
+            'A few minutes on foot along the old triumphal axis, and the Forum opens under us.',
+        },
         title: 'Arch of Titus',
         lat: 41.8906,
         lon: 12.4885,
@@ -91,6 +128,12 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'forum',
+        shot: 'birdsEye',
+        travel: {
+          mode: 'foot',
+          story:
+            'A short hop across the Forum floor to the valley where Rome did its business.',
+        },
         title: 'Forum and Curia',
         lat: 41.8925,
         lon: 12.4853,
@@ -104,6 +147,12 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'trevi',
+        shot: 'lowAngle',
+        travel: {
+          mode: 'foot',
+          story:
+            'A short walk north through the lanes, and water starts to steal the scene.',
+        },
         title: 'Trevi Fountain',
         lat: 41.9009,
         lon: 12.4833,
@@ -117,6 +166,12 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'pantheon',
+        shot: 'crane',
+        travel: {
+          mode: 'foot',
+          story:
+            'Another few minutes on foot west, and the dome that still has no equal comes into view.',
+        },
         title: 'The Pantheon',
         lat: 41.8986,
         lon: 12.4769,
@@ -147,6 +202,7 @@ export const CITY_TOURS = Object.freeze([
     stops: [
       {
         id: 'eiffel',
+        shot: 'orbit',
         title: 'Eiffel Tower',
         lat: 48.8584,
         lon: 2.2945,
@@ -160,6 +216,12 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'arc',
+        shot: 'birdsEye',
+        travel: {
+          mode: 'rail',
+          story:
+            'After a short metro ride toward the Étoile, the arch sits at the star of twelve avenues.',
+        },
         title: 'Arc de Triomphe',
         lat: 48.8738,
         lon: 2.295,
@@ -173,6 +235,12 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'louvre',
+        shot: 'pushIn',
+        travel: {
+          mode: 'car',
+          story:
+            'Following the fastest street route down the Champs-Élysées, you roll toward the palace that became a museum.',
+        },
         title: 'The Louvre',
         lat: 48.8611,
         lon: 2.3358,
@@ -186,6 +254,12 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'notre-dame',
+        shot: 'truck',
+        travel: {
+          mode: 'foot',
+          story:
+            'A walk along the river to the island — the medieval seed of Paris.',
+        },
         title: 'Notre-Dame',
         lat: 48.853,
         lon: 2.3499,
@@ -216,6 +290,7 @@ export const CITY_TOURS = Object.freeze([
     stops: [
       {
         id: 'tokyo-tower',
+        shot: 'orbit',
         title: 'Tokyo Tower',
         lat: 35.6586,
         lon: 139.7454,
@@ -229,6 +304,12 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'imperial-palace',
+        shot: 'birdsEye',
+        travel: {
+          mode: 'rail',
+          story:
+            'A short subway ride north to the palace moat, and the city turns to walls and pine.',
+        },
         title: 'Imperial Palace',
         lat: 35.6852,
         lon: 139.7528,
@@ -242,6 +323,12 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'senso-ji',
+        shot: 'pushIn',
+        travel: {
+          mode: 'rail',
+          story:
+            'Another rail hop east toward Asakusa — the old town the towers were built to look over.',
+        },
         title: 'Senso-ji',
         lat: 35.7148,
         lon: 139.7967,
@@ -255,6 +342,12 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'skytree',
+        shot: 'pullOut',
+        travel: {
+          mode: 'foot',
+          story:
+            'A short hop to Skytree — walk, taxi, or one train. The new mast is already in the skyline.',
+        },
         title: 'Tokyo Skytree',
         lat: 35.7101,
         lon: 139.8107,
@@ -285,6 +378,7 @@ export const CITY_TOURS = Object.freeze([
     stops: [
       {
         id: 'tower-bridge',
+        shot: 'orbit',
         title: 'Tower Bridge',
         lat: 51.5055,
         lon: -0.0754,
@@ -298,6 +392,12 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'st-pauls',
+        shot: 'crane',
+        travel: {
+          mode: 'foot',
+          story:
+            'Fifteen minutes west along the river and up Ludgate Hill, and the dome fills the street.',
+        },
         title: "St Paul's Cathedral",
         lat: 51.5138,
         lon: -0.0984,
@@ -311,6 +411,12 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'westminster',
+        shot: 'truck',
+        travel: {
+          mode: 'rail',
+          story:
+            'A Tube ride on the District line, Blackfriars to Westminster, and Parliament stands on the bank.',
+        },
         title: 'Palace of Westminster',
         lat: 51.5007,
         lon: -0.1246,
@@ -324,6 +430,12 @@ export const CITY_TOURS = Object.freeze([
       },
       {
         id: 'buckingham',
+        shot: 'pushIn',
+        travel: {
+          mode: 'foot',
+          story:
+            'Through St James\'s Park on foot; the palace closes the view at the far end of the lake.',
+        },
         title: 'Buckingham Palace',
         lat: 51.5014,
         lon: -0.1419,
@@ -368,6 +480,31 @@ export function lookAtPose({
   };
 }
 
+/** Resolve a stop's move: the framing the camera arrives at and the one it eases to. */
+export function shotFraming(stop, index = 0) {
+  const type =
+    stop.shot && SHOT_TYPES[stop.shot]
+      ? stop.shot
+      : DEFAULT_SHOT_CYCLE[index % DEFAULT_SHOT_CYCLE.length];
+  const spec = SHOT_TYPES[type];
+  const rangeM = spec.rangeScale && spec.sweep ? stop.rangeM * spec.rangeScale : stop.rangeM;
+  const pitch = spec.pitch ?? stop.pitch;
+  const sweep = spec.sweep || 0;
+  const start = { rangeM, heading: stop.heading - sweep / 2, pitch };
+  const end = {
+    rangeM: spec.sweep ? rangeM : rangeM * (spec.rangeScale || 1),
+    heading: stop.heading + sweep / 2,
+    pitch: Math.max(-70, Math.min(-10, pitch + (spec.pitchDelta || 0))),
+  };
+  return { type, label: spec.label, start, end };
+}
+
+/** Title of the shot that travels to a stop; the stop's own title names its hold. */
+export function travelShotTitle(stop) {
+  const mode = TRAVEL_MODES[stop.travel?.mode] || TRAVEL_MODES.air;
+  return `${mode.verb} → ${stop.title}`;
+}
+
 /** Turn a tour definition into a Director recipe (see recipes.js). */
 export function cityTourToRecipe(tour, { installAfter = 'omniscience-pullback' } = {}) {
   const ground = tour.groundEllipsoidM || 0;
@@ -384,23 +521,19 @@ export function cityTourToRecipe(tour, { installAfter = 'omniscience-pullback' }
       title: `Approaching ${tour.city}`,
     },
   ];
-  for (const stop of tour.stops) {
+  tour.stops.forEach((stop, index) => {
     const base = { ...stop, groundEllipsoidM: ground };
-    const arrival = lookAtPose(base);
-    const orbit = lookAtPose({ ...base, heading: stop.heading + ORBIT_SWEEP_DEG });
+    const framing = shotFraming(stop, index);
+    const arrival = lookAtPose({ ...base, ...framing.start });
+    const settled = lookAtPose({ ...base, ...framing.end });
     cameraPath.push(
-      { ...arrival, duration: TRANSIT_SEC, hold: ARRIVAL_HOLD_SEC, title: stop.title },
-      {
-        ...orbit,
-        duration: Math.max(4, stop.holdSec || 14),
-        hold: 0.4,
-        title: stop.title,
-      },
+      { ...arrival, duration: TRANSIT_SEC, hold: ARRIVAL_HOLD_SEC, title: travelShotTitle(stop) },
+      { ...settled, duration: Math.max(4, stop.holdSec || 14), hold: 0.4, title: stop.title },
     );
-  }
+  });
   return {
     id: tour.id,
-    version: 1,
+    version: 2,
     title: tour.title,
     durationSec: cameraPath.reduce((sum, k) => sum + k.duration + k.hold, 0),
     style: 'normal',
@@ -430,15 +563,52 @@ export function isCityTourScene(sceneId) {
 }
 
 /**
- * Story text for a running shot, or null for non-tour scenes.
- * Arrival and orbit shots share a title, so both resolve to the same stop.
+ * What a running shot means, or null for non-tour scenes.
+ * - `kind: 'establish'` — the opening approach.
+ * - `kind: 'travel'` — the flight into a stop, with the route to draw.
+ * - `kind: 'stop'` — the stop's own move and story.
  */
 export function cityTourStory(sceneId, shotTitle) {
   const tour = TOUR_BY_ID.get(sceneId);
   if (!tour) return null;
   if (shotTitle === `Approaching ${tour.city}`) {
-    return { city: tour.city, title: shotTitle, story: tour.establish.story };
+    return { kind: 'establish', city: tour.city, title: shotTitle, story: tour.establish.story };
   }
-  const stop = tour.stops.find((entry) => entry.title === shotTitle);
-  return stop ? { city: tour.city, title: stop.title, story: stop.story } : null;
+  const index = tour.stops.findIndex((entry) => entry.title === shotTitle);
+  if (index >= 0) {
+    const stop = tour.stops[index];
+    return {
+      kind: 'stop',
+      city: tour.city,
+      title: stop.title,
+      story: stop.story,
+      shot: shotFraming(stop, index).label,
+    };
+  }
+  const travelIndex = tour.stops.findIndex((entry) => travelShotTitle(entry) === shotTitle);
+  if (travelIndex < 0) return null;
+  const stop = tour.stops[travelIndex];
+  const from = tour.stops[travelIndex - 1] || null;
+  const modeId = from && TRAVEL_MODES[stop.travel?.mode] ? stop.travel.mode : 'air';
+  const mode = TRAVEL_MODES[modeId];
+  return {
+    kind: 'travel',
+    city: tour.city,
+    title: shotTitle,
+    mode: modeId,
+    icon: mode.icon,
+    story: stop.travel?.story || `${mode.verb === 'Fly' ? 'Dropping in on' : 'On to'} ${stop.title}.`,
+    from: from ? { lat: from.lat, lon: from.lon } : null,
+    to: { lat: stop.lat, lon: stop.lon },
+    profile: from ? mode.profile : null,
+  };
+}
+
+/** Every ground leg of a tour, for prefetching routes before they are drawn. */
+export function cityTourLegs(sceneId) {
+  const tour = TOUR_BY_ID.get(sceneId);
+  if (!tour) return [];
+  return tour.stops
+    .map((stop) => cityTourStory(sceneId, travelShotTitle(stop)))
+    .filter((leg) => leg.from);
 }

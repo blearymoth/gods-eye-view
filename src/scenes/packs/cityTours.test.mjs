@@ -4,9 +4,13 @@ import {
   CITY_TOURS,
   CITY_TOUR_RECIPES,
   cityTourStory,
+  cityTourLegs,
   cityTourToRecipe,
   isCityTourScene,
   lookAtPose,
+  shotFraming,
+  SHOT_TYPES,
+  travelShotTitle,
 } from './cityTours.js';
 import { recipeToScene } from '../project.js';
 import { parseSceneDocument } from '../../director/document.js';
@@ -70,11 +74,13 @@ test('recipes convert to valid Director scenes that keep the camera near each st
     parseSceneDocument(JSON.stringify({ version: 6, scenes: [scene] }));
     assert.equal(scene.shots[0].visual.hud.visible, false);
     tour.stops.forEach((stop, index) => {
-      for (const shot of scene.shots.slice(1 + index * 2, 3 + index * 2)) {
-        assert.equal(shot.title, stop.title);
+      const [arrival, hold] = scene.shots.slice(1 + index * 2, 3 + index * 2);
+      assert.equal(arrival.title, travelShotTitle(stop));
+      assert.equal(hold.title, stop.title);
+      for (const shot of [arrival, hold]) {
         const ground = haversineM(shot.camera, stop);
-        assert.ok(ground < stop.rangeM + 5, `${stop.id} camera drifted ${ground} m`);
-        assert.ok(shot.camera.alt > tour.groundEllipsoidM + 40, `${stop.id} too low`);
+        assert.ok(ground < stop.rangeM * 1.8 + 5, `${stop.id} camera drifted ${ground} m`);
+        assert.ok(shot.camera.alt > tour.groundEllipsoidM + 30, `${stop.id} too low`);
       }
     });
   }
@@ -87,13 +93,71 @@ test('stories resolve by scene and shot title, for both shots of a stop', () => 
   assert.equal(cityTourStory('flights-radar', 'Shot 1'), null);
   assert.equal(cityTourStory(rome.id, 'Nowhere'), null);
   assert.deepEqual(cityTourStory(rome.id, 'Approaching Rome'), {
+    kind: 'establish',
     city: 'Rome',
     title: 'Approaching Rome',
     story: rome.establish.story,
   });
   const scene = recipeToScene(cityTourToRecipe(rome));
-  assert.equal(cityTourStory(rome.id, scene.shots[1].title).story, rome.stops[0].story);
-  assert.equal(cityTourStory(rome.id, scene.shots[2].title).story, rome.stops[0].story);
+  // The first arrival is a flight in: no ground leg to draw.
+  const first = cityTourStory(rome.id, scene.shots[1].title);
+  assert.equal(first.kind, 'travel');
+  assert.equal(first.mode, 'air');
+  assert.equal(first.from, null);
+  assert.equal(first.profile, null);
+  const hold = cityTourStory(rome.id, scene.shots[2].title);
+  assert.equal(hold.kind, 'stop');
+  assert.equal(hold.story, rome.stops[0].story);
+  assert.equal(hold.shot, 'Orbit');
+  const walk = cityTourStory(rome.id, scene.shots[3].title);
+  assert.equal(walk.kind, 'travel');
+  assert.equal(walk.mode, 'foot');
+  assert.equal(walk.profile, 'foot');
+  assert.deepEqual(walk.from, { lat: rome.stops[0].lat, lon: rome.stops[0].lon });
+  assert.deepEqual(walk.to, { lat: rome.stops[1].lat, lon: rome.stops[1].lon });
+  assert.equal(walk.story, rome.stops[1].travel.story);
+  assert.equal(cityTourLegs(rome.id).length, rome.stops.length - 1);
+  assert.equal(cityTourLegs('flights-radar').length, 0);
+});
+
+test('every stop names a known move and travel mode, and legs stay walkable-short', () => {
+  for (const tour of CITY_TOURS) {
+    tour.stops.forEach((stop, index) => {
+      if (stop.shot) assert.ok(SHOT_TYPES[stop.shot], `${stop.id} shot ${stop.shot}`);
+      if (index > 0) {
+        assert.ok(stop.travel?.mode, `${stop.id} needs a travel mode`);
+        assert.ok(stop.travel.story.length > 15, `${stop.id} travel story`);
+        const legM = haversineM(tour.stops[index - 1], stop);
+        assert.ok(legM < 12_000, `${stop.id} leg is ${legM} m`);
+        if (stop.travel.mode === 'foot') assert.ok(legM < 3_500, `${stop.id} is a long walk`);
+      }
+    });
+  }
+});
+
+test('shot framings realise their moves as distinct arrival and end poses', () => {
+  const stop = { rangeM: 600, heading: 90, pitch: -24 };
+  const orbit = shotFraming({ ...stop, shot: 'orbit' });
+  assert.equal(orbit.label, 'Orbit');
+  assert.equal(orbit.end.heading - orbit.start.heading, 40);
+  assert.equal(orbit.start.rangeM, 600);
+  const pushIn = shotFraming({ ...stop, shot: 'pushIn' });
+  assert.equal(pushIn.start.rangeM, 600);
+  assert.ok(pushIn.end.rangeM < 400 && pushIn.end.rangeM > 350);
+  assert.equal(pushIn.start.heading, pushIn.end.heading);
+  const pullOut = shotFraming({ ...stop, shot: 'pullOut' });
+  assert.ok(pullOut.end.rangeM > 900);
+  const crane = shotFraming({ ...stop, shot: 'crane' });
+  assert.equal(crane.end.pitch, -34);
+  const birds = shotFraming({ ...stop, shot: 'birdsEye' });
+  assert.equal(birds.start.pitch, -56);
+  assert.ok(birds.start.rangeM > 1000);
+  const lock = shotFraming({ ...stop, shot: 'lockOff' });
+  assert.deepEqual(lock.start, lock.end);
+  // Unlabelled stops cycle so consecutive stops never repeat a move.
+  const cycled = [0, 1, 2].map((i) => shotFraming(stop, i).type);
+  assert.equal(new Set(cycled).size, 3);
+  assert.equal(shotFraming({ ...stop, shot: 'nope' }, 0).type, 'orbit');
 });
 
 test('tours ship in the built-in recipe list after the public demos', () => {

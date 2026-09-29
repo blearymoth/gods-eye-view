@@ -17,7 +17,12 @@ tour"), generated from a compact list of landmark stops in
   stops: [
     { id: 'colosseum', title: 'The Colosseum', lat, lon,
       rangeM: 820, heading: 240, pitch: -18, heightM: 52, holdSec: 18,
+      shot: 'orbit',                                   // see "Camera moves"
       story: 'One or two sentences the caption shows and voice narrates.' },
+    { id: 'arch-of-titus', title: 'Arch of Titus', lat, lon, rangeM: 340,
+      heading: 250, pitch: -20, heightM: 18, holdSec: 12, shot: 'pushIn',
+      travel: { mode: 'foot', story: 'A few minutes on foot along the old axis.' },
+      story: '…' },
   ],
 }
 ```
@@ -25,22 +30,53 @@ tour"), generated from a compact list of landmark stops in
 `cityTourToRecipe` turns this into a Director recipe:
 
 - one establishing shot over the city (8 s), then
-- per stop, an **arrival** shot (6 s flight, brief rest) and an **orbit**
-  shot that sweeps the heading 40° over `holdSec`. The Director's own eased
-  flight between the two poses is the orbit.
+- per stop, an **arrival** shot (6 s flight, brief rest) titled after the
+  travel mode (`Walk → Arch of Titus`) and a **hold** shot that performs the
+  stop's camera move over `holdSec`. The Director's own eased flight between
+  the two poses is the move.
+
+## Camera moves
+
+`shot` picks how the camera behaves at a stop; stops without one cycle
+through the list so neighbours never repeat.
+
+| `shot`     | What happens |
+|------------|--------------|
+| `orbit`    | 40° sweep around the landmark at the authored range |
+| `truck`    | short 18° lateral pan |
+| `crane`    | tilts down 10° while easing back 8% |
+| `pushIn`   | closes from the authored range to 62% of it |
+| `pullOut`  | opens to 155% of the range, tilting down slightly |
+| `lockOff`  | static hold |
+| `birdsEye` | steep −56° view from 1.7× range, orbiting |
+| `lowAngle` | −14° view from 0.78× range, orbiting |
+
+`travel` on a stop says how you got there from the previous one: `foot`,
+`bike`, `car` (a real route from `/api/route`, drawn on the map during the
+arrival flight) or `rail` (a straight dashed line). The first stop is always
+a flight in, with no line.
 
 The camera pose is derived from the landmark: it stands `rangeM` away on the
 side opposite `heading`, at `groundEllipsoidM + heightM / 2 + rangeM·sin(pitch)`.
 Heights are estimates; ±30 m is fine because the pitch keeps the camera clear.
 
-## Captions and narration
+## Captions, routes, buffering and narration
 
 The scene document has no narration field, so `story` never enters the
 document. `src/scenes/packs/cityTourPresenter.js` subscribes to Director run
-events and, when a tour shot starts, shows the stop's story in a caption
-(`#city-tour-caption`) and, if a voice session is open, sends it to the
-realtime agent as a `tour_beat` item to speak. Arrival and orbit shots share a
-title, so each stop is captioned and narrated once.
+events. When a tour shot starts it shows the beat's story in a caption
+(`#city-tour-caption`), draws the leg's route for travel beats (all legs are
+prefetched when the tour begins), reports 3D-tile buffering as a progress
+bar until 80% of the view's requested tiles are in, and, if a voice session
+is open, sends the story to the realtime agent as a `tour_beat` item.
+
+When a tour starts, every data layer that is on is parked (turned off with
+the `scene` origin, so the user's saved layer state is untouched) and turned
+back on when the tour ends, so feeds and entities stop competing with the
+tiles. The photoreal tileset is also tuned and restored afterwards:
+`cullRequestsWhileMoving` off and `preloadFlightDestinations` on so the
+destination loads during the flight, and `dynamicScreenSpaceError` on so
+distant tiles stay coarse instead of competing with the stop in view.
 
 ## Adding a city
 

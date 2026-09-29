@@ -42,7 +42,9 @@ export function createApplicationTools({
     ?.module.attachSceneController(sceneDirector);
   defer(() => sceneDirector.destroy());
   // Bundled city tours caption and narrate their stops during playback.
-  defer(installCityTourPresenter({ director: sceneDirector }));
+  defer(
+    installCityTourPresenter({ director: sceneDirector, viewer, tileset, dataManager }),
+  );
   onSceneDirector?.(sceneDirector);
   const annotations = initAnnotations({
     viewer,

@@ -6,6 +6,13 @@
 - Gamepad: A selects on every controller (pointer lock no longer gates it),
   polling stops while no pad is connected, the help card retires itself after
   15 s (R3 brings it back), and the style cycle follows the shader presets.
+- City tours: each stop performs an authored camera move (orbit, truck, crane,
+  push in, pull out, lock-off, bird's eye, low angle), travel legs draw their
+  route on the map (foot/bike/car from `/api/route`, dashed line for rail),
+  the caption shows a buffering bar until 80% of the view's tiles are in, and
+  the tileset preloads flight destinations and coarsens distant tiles while a
+  tour runs. Data layers that were on are parked for the tour and restored
+  when it ends.
 - Guided city tours of Rome, Paris, Tokyo and London as bundled Director
   scenes (`src/scenes/packs/cityTours.js`), generated from landmark stops with
   a caption and optional voice narration per stop. See `docs/CITY-TOURS.md`.

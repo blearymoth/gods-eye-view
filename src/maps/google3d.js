@@ -49,6 +49,18 @@ export async function loadPhotorealisticTileset(
   return { tileset: null, route: 'osm', errors };
 }
 
+/**
+ * Coarsen tiles with distance from the camera. Cesium's default refines the
+ * far horizon to the same screen-space error as the foreground, so a low,
+ * tilted view keeps requesting detail for city blocks kilometres away that
+ * cover a few pixels. The moderate density keeps the foreground unchanged.
+ */
+export const DISTANCE_DETAIL_OPTIONS = Object.freeze({
+  dynamicScreenSpaceError: true,
+  dynamicScreenSpaceErrorDensity: 0.0004,
+  dynamicScreenSpaceErrorFactor: 4,
+});
+
 /** Pass credentials to the source instead of changing SDK-wide defaults. */
 export function createGoogleDirectTileset(Cesium, key) {
   key = clean(key);
@@ -56,7 +68,7 @@ export function createGoogleDirectTileset(Cesium, key) {
   // Tiles keep drawing their own texture while draped weather loads.
   return Cesium.createGooglePhotorealistic3DTileset(
     { key, onlyUsingWithGoogleGeocoder: true },
-    { asynchronouslyLoadImagery: true },
+    { asynchronouslyLoadImagery: true, ...DISTANCE_DETAIL_OPTIONS },
   );
 }
 
@@ -80,5 +92,6 @@ export async function createGoogleIonTileset(
     enableCollision: true,
     // Tiles keep drawing their own texture while draped weather loads.
     asynchronouslyLoadImagery: true,
+    ...DISTANCE_DETAIL_OPTIONS,
   });
 }
