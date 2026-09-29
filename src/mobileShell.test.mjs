@@ -35,7 +35,7 @@ test('sheet ownership stays exclusive and complete', () => {
   assert.deepEqual([...MOBILE_SHEET_PANELS.layers], ['data-panel']);
   assert.deepEqual([...MOBILE_SHEET_PANELS.context], ['global-context-panel']);
   assert.deepEqual([...MOBILE_SHEET_PANELS.display], ['pp-toggles']);
-  assert.deepEqual([...MOBILE_SHEET_PANELS.more], ['cctv-panel', 'scene-panel', 'geo-status-panel']);
+  assert.deepEqual([...MOBILE_SHEET_PANELS.more], ['scene-panel', 'cctv-panel']);
   assert.deepEqual([...MOBILE_SHEET_PANELS.search], ['location-bar']);
   assert.deepEqual([...MOBILE_SHEET_PANELS.presets], ['control-panel']);
   assert.equal(sheetForPanelId('data-panel'), 'layers');

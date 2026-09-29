@@ -11,7 +11,7 @@ export const MOBILE_SHEET_PANELS = Object.freeze({
   layers: Object.freeze(['data-panel']),
   context: Object.freeze(['global-context-panel']),
   display: Object.freeze(['pp-toggles']),
-  more: Object.freeze(['cctv-panel', 'scene-panel', 'geo-status-panel']),
+  more: Object.freeze(['scene-panel', 'cctv-panel']),
   search: Object.freeze(['location-bar']),
   presets: Object.freeze(['control-panel']),
 });

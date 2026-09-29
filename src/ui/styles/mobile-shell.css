@@ -110,18 +110,63 @@
     left: 12px;
   }
 
-  body.mobile-shell #title-bar .subtitle,
-  body.mobile-shell #style-indicator {
+  /* Cosmetic chrome a phone has no room for: the wordmark, style badge,
+     sync progress chips, recording safe-frame guides and panel glows. Every
+     control they sat beside is still reachable from the tab bar. */
+  body.mobile-shell #title-bar,
+  body.mobile-shell #style-indicator,
+  body.mobile-shell #traffic-sync-chip,
+  body.mobile-shell #cctv-sync-chip,
+  body.mobile-shell #safe-frame-overlay,
+  body.mobile-shell .panel-glow {
     display: none;
+  }
+
+  /* The HUD keeps its readouts (mode, summary, position, altitude, AIS) and
+     drops the set dressing: corner brackets, edge readouts, classification
+     banner, sensor ids and the REC/orbit line that collided with them. */
+  body.mobile-shell #intel-hud .hud-bracket,
+  body.mobile-shell #intel-hud .hud-edge,
+  body.mobile-shell #intel-hud .hud-classification,
+  body.mobile-shell #intel-hud .hud-system,
+  body.mobile-shell #intel-hud .hud-rec,
+  body.mobile-shell #intel-hud .hud-orbital,
+  body.mobile-shell #intel-hud #hud-mgrs,
+  body.mobile-shell #intel-hud #hud-gsd {
+    display: none;
+  }
+
+  body.mobile-shell #intel-hud .hud-corner {
+    max-width: 70vw;
+  }
+
+  /* The bottom corners collide with the credit line and the dock on a phone;
+     the summary keeps the essentials in two lines. */
+  body.mobile-shell #intel-hud .hud-bottom-right,
+  body.mobile-shell #intel-hud .hud-bottom-bar {
+    display: none;
+  }
+
+  body.mobile-shell #intel-hud .hud-summary {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
   }
 
   body.mobile-shell #top-center-actions {
     top: max(10px, env(safe-area-inset-top, 0px));
+    gap: 6px;
   }
 
   body.mobile-shell #top-center-actions button {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
+  }
+
+  body.mobile-shell #mobile-tab-bar {
+    backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
   }
 
   body.mobile-shell #left-panel-stack {
@@ -309,6 +354,40 @@
 
   body.mobile-shell[data-mobile-sheet='more'] #left-panel-stack > #data-panel {
     display: none;
+  }
+
+  /* More = Scenes on top, Cameras below. The camera panel lives in the right
+     rail at runtime, so it gets its own fixed slot above the dock. */
+  body.mobile-shell[data-mobile-sheet='more'] #left-panel-stack {
+    max-height: min(48dvh, var(--mobile-modal-max-height));
+  }
+
+  body.mobile-shell[data-mobile-sheet='more'] #right-context-rail {
+    z-index: 160;
+  }
+
+  body.mobile-shell[data-mobile-sheet='more'] #right-context-rail > #cctv-panel,
+  body.mobile-shell[data-mobile-sheet='more'] #right-context-rail > #cctv-panel.collapsed,
+  body.mobile-shell[data-mobile-sheet='more'] #right-context-rail > #cctv-panel:not(.collapsed) {
+    position: fixed;
+    top: auto;
+    right: 12px;
+    bottom: calc(var(--mobile-chrome-bottom) + 8px);
+    left: 12px;
+    z-index: 160;
+    display: flex;
+    flex-direction: column;
+    visibility: visible;
+    width: auto;
+    max-width: none;
+    height: auto;
+    max-height: min(38dvh, var(--mobile-modal-max-height));
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    pointer-events: auto;
   }
 
   body.mobile-shell[data-mobile-sheet='more'] #left-panel-stack > #cctv-panel,
@@ -548,7 +627,7 @@
   }
 
   body.mobile-shell:not(.ui-clean-view):not(.recording-mode) #cesium-credits,
-  body.mobile-shell:not(.ui-clean-view):not(.recording-mode):has(#intel-hud[data-variant='minimal'].active) #cesium-credits {
+  body.mobile-shell:not(.ui-clean-view):not(.recording-mode):has(#intel-hud.active) #cesium-credits {
     bottom: calc(2vh + 8.5rem);
     left: 0.75rem;
     max-width: calc(100vw - 1.5rem);
