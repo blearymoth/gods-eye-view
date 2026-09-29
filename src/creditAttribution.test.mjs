@@ -388,6 +388,9 @@ test('the model refuses every cascade construct it cannot resolve', () => {
   for (const { rule, part } of ownBoxEntries()) {
     const guarded = rule.decls.filter((decl) => GUARDED_PROPS.has(decl.prop));
     if (!guarded.length) continue;
+    // The phone tab shell repositions the dock and credits itself; its offsets
+    // are pinned in mobileShell.test.mjs rather than in this cascade model.
+    if (/\bbody\.mobile-shell\b/.test(part)) continue;
     if (!RECOGNIZED.has(part)) {
       complaints.push(`unrecognized selector positions a modelled element: "${part}" (${guarded.map((d) => d.prop).join(', ')})`);
       continue;

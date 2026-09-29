@@ -103,7 +103,11 @@ export function installTrackpadPinchZoom(
 }
 
 /** Create the standard globe viewer in caller-owned, visible containers. */
-export function createApplicationViewer({ container, creditContainer }) {
+export function createApplicationViewer({
+  container,
+  creditContainer,
+  phoneLayout = false,
+}) {
   if (!container || !creditContainer)
     throw new TypeError('Viewer and credit containers are required');
   const viewer = new Cesium.Viewer(container, {
@@ -120,7 +124,8 @@ export function createApplicationViewer({ container, creditContainer }) {
     infoBox: false,
     baseLayer: false,
     creditContainer,
-    msaaSamples: 4,
+    // 4x MSAA is a known WebGL kill on phones; desktop keeps the current look.
+    msaaSamples: phoneLayout ? 1 : 4,
     contextOptions: { webgl: { preserveDrawingBuffer: true } },
   });
   try {

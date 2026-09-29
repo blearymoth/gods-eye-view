@@ -1,5 +1,9 @@
 # Changelog
 
+- Phone tab-shell for narrow viewports (`src/mobileShell.js`): a bottom tab bar
+  (Search, Layers, Context, Display, Presets, More) that opens one panel sheet at
+  a time under 720px; phones also use 1x MSAA and a 25s Google 3D Tiles deadline.
+
 - Steam Deck / gamepad camera controls (`src/deckControls.js`): sticks for
   move/look, triggers for zoom, face buttons and D-pad for common UI actions,
   optional DISPLAY → Gamepad switch. Defaults on unless `GEV_DECK_CONTROLS=0`.

@@ -2,6 +2,7 @@ import { UiLifetime } from './uiLifetime.js';
 import { displayPanelScroller } from './displayPanelScroll.js';
 import { PanelPositionControls } from './panelPositionControls.js';
 import { PanelLayoutController } from './panelLayoutController.js';
+import { syncMobileSheetFromPanel } from '../mobileShell.js';
 import {
   bindPanelDisclosure,
   collapsePanelOnEscape,
@@ -485,6 +486,11 @@ export class PanelChrome {
       if (priorRightOwner !== this._panelLayout._rightStackPreferredPanelId) {
         this._scheduleRightPanelLayout({ reconsiderAutoCollapse: true });
       }
+      syncMobileSheetFromPanel(panelId, {
+        collapsed: nextCollapsed,
+        restore,
+        explicit,
+      });
       return;
     }
     panelEl.classList.remove(
@@ -569,6 +575,11 @@ export class PanelChrome {
       reconsiderAutoCollapse: this._leftPanelStack?.contains(panelEl) === true,
     });
     if (syncShare) this.shareLinkManager?.onPanelStateChange?.();
+    syncMobileSheetFromPanel(panelId, {
+      collapsed: nextCollapsed,
+      restore,
+      explicit,
+    });
   }
 
   _layoutRightPanels() {

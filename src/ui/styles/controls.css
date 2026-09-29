@@ -996,7 +996,10 @@ body.ui-clean-view #data-panel,
 body.ui-clean-view #cctv-panel,
 body.ui-clean-view #radio-panel,
 body.ui-clean-view #global-context-panel,
-body.ui-clean-view #scene-panel {
+body.ui-clean-view #scene-panel,
+body.ui-clean-view #mobile-tab-bar,
+body.ui-clean-view #mobile-sheet-backdrop,
+body.ui-clean-view #mobile-modal-close {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;

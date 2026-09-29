@@ -47,9 +47,11 @@ export async function createApplicationScene({
   creditContainer.id = 'cesium-credits';
   document.body.appendChild(creditContainer);
   defer(() => creditContainer.remove());
+  const phoneLayout = window.matchMedia('(max-width: 720px)').matches;
   const viewer = createApplicationViewer({
     container: 'cesiumContainer',
     creditContainer,
+    phoneLayout,
   });
   defer(() => {
     uninstallRenderGovernor(viewer);
@@ -62,10 +64,28 @@ export async function createApplicationScene({
     googleApiKey || cesiumToken
       ? 'Loading Google 3D Tiles...'
       : 'Loading the keyless globe...';
-  const photoreal = await loadPhotorealisticTileset(Cesium, {
+  // On phones a hung tileset request used to sit on the splash until the
+  // browser showed a timeout page, so race a bounded deadline against startup.
+  const createTileset = loadPhotorealisticTileset(Cesium, {
     googleApiKey,
     cesiumToken,
   });
+  const photoreal = phoneLayout
+    ? await Promise.race([
+        createTileset,
+        new Promise((_, reject) => {
+          setTimeout(
+            () =>
+              reject(new Error('Google 3D Tiles timed out on this device')),
+            25_000,
+          );
+        }),
+      ]).catch((tileError) => ({
+        tileset: null,
+        route: null,
+        errors: [tileError],
+      }))
+    : await createTileset;
   const tileset = photoreal.tileset;
   // A provider can finish after cancellation; retain ownership of its result.
   defer(() => {

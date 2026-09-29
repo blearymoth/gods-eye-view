@@ -33,6 +33,7 @@ import * as Cesium from 'cesium';
 import { aircraftTrackingTarget } from '../cockpitTracking.js';
 
 import { ShellFeedback } from './shellFeedback.js';
+import { initMobileShell } from '../mobileShell.js';
 
 import { runCctvLayerEnableTransition } from '../cctvFocusPolicy.js';
 
@@ -565,6 +566,11 @@ export class StyleManager extends ShellFacade {
     this._initUI();
     this._initMapStackControl();
     this._initPanelChrome();
+    this._mobileShell = initMobileShell({
+      setPanelCollapsed: (panelId, collapsed, options) => {
+        this.setPanelCollapsed(panelId, collapsed, options);
+      },
+    });
     this._initLeftPanelAdaptiveLayout();
     this._initRightPanelAdaptiveLayout();
     this._initRadioPanel();
