@@ -1,5 +1,9 @@
 # Changelog
 
+- Steam Deck / gamepad camera controls (`src/deckControls.js`): sticks for
+  move/look, triggers for zoom, face buttons and D-pad for common UI actions,
+  optional DISPLAY → Gamepad switch. Defaults on unless `GEV_DECK_CONTROLS=0`.
+
 - Public Overpass instances are no longer used by default. Street Traffic
   roads come from TomTom flow tiles, OpenFreeMap vector tiles, or both, chosen
   on the layer row (TomTom / OSM / Hybrid) or with `?trafficRoads=`. With a

@@ -7,6 +7,7 @@ export function createBrowserViteConfig({
   publicDir,
   googleApiKey,
   cesiumToken,
+  deckControls = '1',
   host = 'localhost',
   port = 4173,
   command,
@@ -47,6 +48,8 @@ export function createBrowserViteConfig({
     define: {
       'import.meta.env.GOOGLE_MAPS_API_KEY': JSON.stringify(googleApiKey),
       'import.meta.env.CESIUM_ION_TOKEN': JSON.stringify(cesiumToken),
+      // Gamepad / Steam Deck controls default on; GEV_DECK_CONTROLS=0 defaults off.
+      'import.meta.env.GEV_DECK_CONTROLS': JSON.stringify(deckControls === '0' ? '0' : '1'),
     },
     build: { chunkSizeWarningLimit: 1500 },
   };
