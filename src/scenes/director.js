@@ -2347,13 +2347,18 @@ export class SceneDirector {
     }
   }
 
-  /** Let an opt-in media owner finish playback and its fade before the next flight. */
+  /**
+   * Let an opt-in media owner finish playback and its fade before the next
+   * flight, then wait on any registered readiness gates.
+   */
   async _holdShot(scene, shot, token) {
-    await this._holdShotMedia(scene, shot, token);
-    await this._waitShotHoldGates(scene, shot, token);
+    // Called on bare objects by tests and adapters, so resolve the media hold
+    // through the prototype and treat gates as optional state.
+    await SceneDirector.prototype._holdShotMediaAndTimer.call(this, scene, shot, token);
+    if (this._shotHoldGates?.size) await this._waitShotHoldGates(scene, shot, token);
   }
 
-  async _holdShotMedia(scene, shot, token) {
+  async _holdShotMediaAndTimer(scene, shot, token) {
     const readers = Object.entries(
       this._layerStatesForShot(scene, shot),
     ).flatMap(([id, state]) => {

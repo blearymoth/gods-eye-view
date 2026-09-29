@@ -33,6 +33,30 @@ export const CITY_TOUR_GATE_SETTLE_MS = 600;
 export const CITY_TOUR_GATE_MAX_WAIT_MS = 12_000;
 /** Entity id prefix for a stop's callout markers. */
 export const CITY_TOUR_CALLOUT_PREFIX = 'city-tour:callout:';
+/** World-overlay source that carries the callout labels. */
+export const CITY_TOUR_CALLOUT_SOURCE_ID = 'city-tour-callouts';
+
+/** A callout's world-overlay label; the lit one is brighter and wins collisions. */
+export function calloutOverlayEntry(callout, index, position, lit) {
+  return {
+    id: `${CITY_TOUR_CALLOUT_PREFIX}${index}`,
+    position,
+    variant: 'label',
+    title: callout.label,
+    accent: lit ? '#ffffff' : '#7fd8ff',
+    priority: lit ? 10_000 : 1_000 - index,
+    collisionGroup: 'ambient-label',
+    paintLane: 'ambient-label',
+    interactive: false,
+    edgeFade: 'keyhole',
+    horizonCull: true,
+    terrainOcclusion: false,
+    gapPx: 14,
+    verticalOnly: true,
+    placement: 'above',
+    accessibilityLabel: callout.label,
+  };
+}
 
 /** Route colour per travel mode (cyan family, matching the Directions layer). */
 const ROUTE_COLORS = Object.freeze({
@@ -120,6 +144,8 @@ export function bufferingProgress(pending, peak) {
  *   buffering progress. Optional: keyless globes have none.
  * @param {object|null} [input.dataManager] Layer manager; enabled layers are
  *   parked for the tour and restored afterwards.
+ * @param {object|null} [input.overlayHost] World-overlay host that draws the
+ *   callout labels (Cesium text labels are not used in this app).
  * @param {typeof fetch} [input.fetchImpl]
  * @param {() => object | null | undefined} [input.getVoice] Returns the voice
  *   controls (window.__gevVoiceCommands) or nothing when voice is off.
@@ -132,6 +158,7 @@ export function installCityTourPresenter({
   viewer = null,
   tileset = null,
   dataManager = null,
+  overlayHost = null,
   fetchImpl = (...args) => globalThis.fetch(...args),
   getVoice = () => globalThis.window?.__gevVoiceCommands,
   documentRef = globalThis.document,
@@ -233,27 +260,35 @@ export function installCityTourPresenter({
     }
   };
 
-  const styleCallout = (mark, lit) => {
-    const { entity } = mark;
-    if (!entity?.point) return;
-    entity.point.pixelSize = lit ? 13 : 8;
-    entity.point.color = Cesium.Color.fromCssColorString(lit ? '#ffffff' : '#39d0ff').withAlpha(lit ? 1 : 0.6);
-    if (entity.label) {
-      entity.label.scale = lit ? 1.15 : 0.9;
-      entity.label.fillColor = Cesium.Color.fromCssColorString(lit ? '#ffffff' : '#bff4ff');
+  const paintCallouts = (litIndex) => {
+    for (const [i, mark] of calloutMarks.entries()) {
+      const lit = i === litIndex;
+      if (mark.entity?.point) {
+        mark.entity.point.pixelSize = lit ? 13 : 8;
+        mark.entity.point.color = Cesium.Color.fromCssColorString(lit ? '#ffffff' : '#39d0ff').withAlpha(lit ? 1 : 0.6);
+      }
     }
+    overlayHost?.setEntries?.(
+      CITY_TOUR_CALLOUT_SOURCE_ID,
+      calloutMarks.map((mark, i) => calloutOverlayEntry(mark.callout, i, mark.position, i === litIndex)),
+      { moving: false },
+    );
   };
 
   const lightCallout = (index) => {
     if (index < 0 || index >= calloutMarks.length || spokenCallouts.has(index)) return;
     spokenCallouts.add(index);
-    calloutMarks.forEach((mark, i) => styleCallout(mark, i === index));
+    paintCallouts(index);
   };
 
   const clearCallouts = () => {
     for (const timer of calloutTimers) clearTimeout(timer);
     calloutTimers = [];
     if (viewer?.entities) for (const { entity } of calloutMarks) viewer.entities.remove(entity);
+    if (calloutMarks.length) {
+      overlayHost?.clearSource?.(CITY_TOUR_CALLOUT_SOURCE_ID);
+      overlayHost?.setVisible?.(CITY_TOUR_CALLOUT_SOURCE_ID, false);
+    }
     calloutMarks = [];
     spokenCallouts.clear();
     transcript = '';
@@ -262,30 +297,26 @@ export function installCityTourPresenter({
   const drawCallouts = (beat) => {
     clearCallouts();
     if (!viewer?.entities || !Cesium || !beat.callouts?.length) return;
-    calloutMarks = beat.callouts.map((callout, index) => ({
-      callout,
-      entity: viewer.entities.add({
-        id: `${CITY_TOUR_CALLOUT_PREFIX}${index}`,
-        position: Cesium.Cartesian3.fromDegrees(callout.lon, callout.lat, callout.alt),
-        point: {
-          pixelSize: 8,
-          color: Cesium.Color.fromCssColorString('#39d0ff').withAlpha(0.6),
-          outlineColor: Cesium.Color.BLACK.withAlpha(0.6),
-          outlineWidth: 1,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        },
-        label: {
-          text: callout.label,
-          font: '12px "JetBrains Mono", monospace',
-          fillColor: Cesium.Color.fromCssColorString('#bff4ff'),
-          showBackground: true,
-          backgroundColor: Cesium.Color.fromCssColorString('#060a10').withAlpha(0.7),
-          pixelOffset: new Cesium.Cartesian2(0, -18),
-          scale: 0.9,
-          disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        },
-      }),
-    }));
+    calloutMarks = beat.callouts.map((callout, index) => {
+      const position = Cesium.Cartesian3.fromDegrees(callout.lon, callout.lat, callout.alt);
+      return {
+        callout,
+        position,
+        entity: viewer.entities.add({
+          id: `${CITY_TOUR_CALLOUT_PREFIX}${index}`,
+          position,
+          point: {
+            pixelSize: 8,
+            color: Cesium.Color.fromCssColorString('#39d0ff').withAlpha(0.6),
+            outlineColor: Cesium.Color.BLACK.withAlpha(0.6),
+            outlineWidth: 1,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+        }),
+      };
+    });
+    overlayHost?.setVisible?.(CITY_TOUR_CALLOUT_SOURCE_ID, true);
+    paintCallouts(-1);
     // Without a narrator, walk the callouts on a timer spread over the move.
     if (!getVoice()?.session?.isActive?.()) {
       const step = (beat.holdSec * 1000) / (calloutMarks.length + 1);

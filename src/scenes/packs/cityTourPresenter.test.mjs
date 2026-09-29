@@ -9,6 +9,7 @@ import {
   CITY_TOUR_CAPTION_ID,
   CITY_TOUR_ROUTE_ENTITY_ID,
   CITY_TOUR_CALLOUT_PREFIX,
+  CITY_TOUR_CALLOUT_SOURCE_ID,
   CITY_TOUR_GATE_MAX_WAIT_MS,
 } from './cityTourPresenter.js';
 import { CITY_TOURS, travelShotTitle } from './cityTours.js';
@@ -59,6 +60,12 @@ const FakeCesium = {
 };
 
 function harness({ tileset = null, routePayload = null, dataManager = null } = {}) {
+  const overlay = { entries: new Map(), visible: new Map() };
+  const overlayHost = {
+    setEntries: (id, entries) => overlay.entries.set(id, entries),
+    clearSource: (id) => overlay.entries.delete(id),
+    setVisible: (id, on) => overlay.visible.set(id, on),
+  };
   const listeners = new Set();
   const caption = fakeElement();
   const documentRef = { createElement: () => caption, body: { appendChild() {} } };
@@ -111,6 +118,7 @@ function harness({ tileset = null, routePayload = null, dataManager = null } = {
     viewer,
     tileset,
     dataManager,
+    overlayHost,
     documentRef,
     Cesium: FakeCesium,
     getVoice: () => voice,
@@ -126,7 +134,7 @@ function harness({ tileset = null, routePayload = null, dataManager = null } = {
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
   return {
     caption, sent, responses, fetched, entities, emit, dispose, settle, listeners, gates, speak,
-    voiceListeners,
+    voiceListeners, overlay,
     setVoice: (v) => (voiceActive = v),
   };
 }
@@ -309,20 +317,30 @@ test('callouts are marked at a stop and light up as the narrator says them', () 
   h.emit('shot_start', { sceneId: rome.id, title: pantheon.title, index: 10 });
   const marks = h.entities.filter((entity) => entity.id.startsWith(CITY_TOUR_CALLOUT_PREFIX));
   assert.equal(marks.length, 2);
-  assert.equal(marks[0].label.text, 'Oculus');
+  assert.equal(marks[0].label, undefined, 'text goes through the world overlay, never a Cesium label');
   assert.equal(marks[0].position.alt, 118);
   assert.equal(marks[0].point.pixelSize, 8);
+  const labels = () => h.overlay.entries.get(CITY_TOUR_CALLOUT_SOURCE_ID);
+  assert.equal(h.overlay.visible.get(CITY_TOUR_CALLOUT_SOURCE_ID), true);
+  assert.deepEqual(labels().map((entry) => [entry.title, entry.variant, entry.accent]), [
+    ['Oculus', 'label', '#7fd8ff'],
+    ['Piazza della Rotonda', 'label', '#7fd8ff'],
+  ]);
   h.speak('Hadrian\'s rebuild. The ocu');
   assert.equal(marks[0].point.pixelSize, 8, 'half a word is not a mention');
   h.speak('lus is the only light.');
   assert.equal(marks[0].point.pixelSize, 13, 'the oculus lit when said');
   assert.equal(marks[1].point.pixelSize, 8);
+  assert.equal(labels()[0].accent, '#ffffff');
+  assert.ok(labels()[0].priority > labels()[1].priority);
   h.speak(' The fountain in the piazza came later.', false);
   assert.equal(marks[1].point.pixelSize, 13);
   assert.equal(marks[0].point.pixelSize, 8, 'only the current callout is lit');
   h.speak('', true);
   h.emit('scene_run_complete', {});
   assert.equal(h.entities.filter((entity) => entity.id.startsWith(CITY_TOUR_CALLOUT_PREFIX)).length, 0);
+  assert.equal(labels(), undefined);
+  assert.equal(h.overlay.visible.get(CITY_TOUR_CALLOUT_SOURCE_ID), false);
   assert.equal(h.voiceListeners.size, 0);
 });
 
