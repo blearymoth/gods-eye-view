@@ -1,0 +1,68 @@
+/* City tour caption: shown only while a bundled tour shot is running. */
+#city-tour-caption {
+  position: fixed;
+  left: 50%;
+  bottom: max(11vh, calc(env(safe-area-inset-bottom, 0px) + 72px));
+  z-index: 106;
+  width: min(560px, calc(100vw - 32px));
+  padding: 12px 18px 14px;
+  transform: translate(-50%, 12px);
+  opacity: 0;
+  transition:
+    opacity 260ms ease,
+    transform 260ms ease;
+  color: var(--text-primary);
+  background: rgba(6, 10, 16, 0.62);
+  border: 1px solid rgba(0, 212, 255, 0.28);
+  border-radius: 14px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  pointer-events: none;
+}
+
+#city-tour-caption.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+#city-tour-caption .city-tour-caption-city {
+  display: inline-block;
+  margin-right: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+#city-tour-caption .city-tour-caption-title {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #bff4ff;
+}
+
+#city-tour-caption .city-tour-caption-story {
+  margin: 6px 0 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+body.ui-clean-view #city-tour-caption,
+body.recording-mode #city-tour-caption {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  #city-tour-caption {
+    bottom: max(14vh, calc(env(safe-area-inset-bottom, 0px) + 96px));
+    padding: 10px 14px 12px;
+  }
+
+  #city-tour-caption .city-tour-caption-story {
+    font-size: 13px;
+  }
+}

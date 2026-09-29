@@ -728,7 +728,9 @@
       "src/director/authoring.js",
       "src/scenes/sharing.js",
       "src/ui/sceneSharing.js",
-      "src/data/cameraArrival.js"
+      "src/data/cameraArrival.js",
+      "src/scenes/packs/cityTours.js",
+      "src/scenes/packs/cityTourPresenter.js"
     ],
     "external": ["cesium"]
   },
@@ -2034,7 +2036,9 @@
       "src/layers/warscope/index.js",
       "src/layers/warscope/model.js",
       "src/layers/warscope/source.js",
-      "src/app/layers/warscope.js"
+      "src/app/layers/warscope.js",
+      "src/scenes/packs/cityTours.js",
+      "src/scenes/packs/cityTourPresenter.js"
     ],
     "external": [
       "hls.js",

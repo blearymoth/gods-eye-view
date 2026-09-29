@@ -1,5 +1,13 @@
 # God's Eye View Current State
 
+## City tours
+
+- Rome, Paris, Tokyo and London ship as Director scenes generated from
+  landmark stops (`src/scenes/packs/cityTours.js`); each stop is an arrival
+  shot plus a 40° orbit. `cityTourPresenter.js` captions the stop's story
+  during playback and hands it to an open voice session as a `tour_beat`.
+  Authoring: `docs/CITY-TOURS.md`.
+
 ## WarScope conflict events
 
 - `warscope-events` is a Data Layers toggle for global GDELT-backed conflict

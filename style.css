@@ -22,6 +22,7 @@
 @import './src/ui/styles/provider-settings.css';
 @import './src/ui/styles/gamepad.css';
 @import './src/ui/styles/mobile-shell.css';
+@import './src/ui/styles/city-tours.css';
 
 @import './src/ui/styles/weather.css';
 @import './src/ui/styles/cyber.css';

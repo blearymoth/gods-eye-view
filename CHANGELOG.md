@@ -1,5 +1,15 @@
 # Changelog
 
+- Phones drop cosmetic chrome: the wordmark, style badge, sync chips, safe-frame
+  guides, panel glows and the HUD's brackets, edge readouts, classification and
+  REC/orbit lines; every control stays reachable from the tab bar.
+- Gamepad: A selects on every controller (pointer lock no longer gates it),
+  polling stops while no pad is connected, the help card retires itself after
+  15 s (R3 brings it back), and the style cycle follows the shader presets.
+- Guided city tours of Rome, Paris, Tokyo and London as bundled Director
+  scenes (`src/scenes/packs/cityTours.js`), generated from landmark stops with
+  a caption and optional voice narration per stop. See `docs/CITY-TOURS.md`.
+
 - WarScope Global Conflict Events data layer (`src/layers/warscope/`): GDELT-backed
   event dots that become expandable text cards with outbound source links when
   zoomed in, served through a fixed-host `/api/warscope/events` proxy.
