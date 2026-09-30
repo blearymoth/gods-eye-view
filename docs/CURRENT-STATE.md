@@ -2,7 +2,8 @@
 
 ## City tours
 
-- Rome, Paris, Tokyo and London ship as Director scenes generated from
+- Rome, Paris, Tokyo and London ship as opt-in (`GEV_CITY_TOURS=1`, off by
+  default) Director scenes generated from
   landmark stops (`src/scenes/packs/cityTours.js`); each stop is an arrival
   shot plus a 40° orbit. `cityTourPresenter.js` captions the stop's story
   during playback and hands it to an open voice session as a `tour_beat`.

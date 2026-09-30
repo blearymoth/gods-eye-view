@@ -12,7 +12,10 @@ import {
   sceneRequiresContextModeExit,
   stripSceneTrackingParams,
 } from './scenePolicy.js';
-import { SCENE_RECIPES } from './recipes.js';
+import { createSceneRecipes } from './recipes.js';
+
+// Opt-in content is held to the same policy as the default list.
+const SCENE_RECIPES = createSceneRecipes({ cityTours: true });
 import { LAYER_STATE_REGISTRY } from '../data/layerState.js';
 
 /**

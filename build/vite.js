@@ -8,6 +8,7 @@ export function createBrowserViteConfig({
   googleApiKey,
   cesiumToken,
   deckControls = '1',
+  cityTours = '0',
   host = 'localhost',
   port = 4173,
   command,
@@ -50,6 +51,8 @@ export function createBrowserViteConfig({
       'import.meta.env.CESIUM_ION_TOKEN': JSON.stringify(cesiumToken),
       // Gamepad / Steam Deck controls default on; GEV_DECK_CONTROLS=0 defaults off.
       'import.meta.env.GEV_DECK_CONTROLS': JSON.stringify(deckControls === '0' ? '0' : '1'),
+      // Bundled city tours are opt-in; GEV_CITY_TOURS=1 installs them.
+      'import.meta.env.GEV_CITY_TOURS': JSON.stringify(cityTours === '1' ? '1' : '0'),
     },
     build: { chunkSizeWarningLimit: 1500 },
   };

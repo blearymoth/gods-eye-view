@@ -31,6 +31,7 @@ test('explicit build inputs preserve browser-only defines, plugin order and loop
     'import.meta.env.GOOGLE_MAPS_API_KEY': '"browser-fixture"',
     'import.meta.env.CESIUM_ION_TOKEN': '"ion-fixture"',
     'import.meta.env.GEV_DECK_CONTROLS': '"1"',
+    'import.meta.env.GEV_CITY_TOURS': '"0"',
   });
   assert.equal(
     createBrowserViteConfig({ host: '0.0.0.0', port: '4800' }).server

@@ -16,8 +16,8 @@
   Director shot hold gate, up to 12 s) so moves never start over half-loaded
   tiles, and each stop's callouts are marked on the map and light up as the
   narrator says them.
-- Guided city tours of Rome, Paris, Tokyo and London as bundled Director
-  scenes (`src/scenes/packs/cityTours.js`), generated from landmark stops with
+- Guided city tours of Rome, Paris, Tokyo and London as opt-in bundled Director
+  scenes (off by default; `GEV_CITY_TOURS=1` installs them) (`src/scenes/packs/cityTours.js`), generated from landmark stops with
   a caption and optional voice narration per stop. See `docs/CITY-TOURS.md`.
 
 - WarScope Global Conflict Events data layer (`src/layers/warscope/`): GDELT-backed

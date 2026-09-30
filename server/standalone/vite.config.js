@@ -17,6 +17,7 @@ export default defineConfig(({ command, mode }) => {
     googleApiKey: process.env.GOOGLE_MAPS_API_KEY,
     cesiumToken: process.env.CESIUM_ION_TOKEN,
     deckControls: process.env.GEV_DECK_CONTROLS,
+    cityTours: process.env.GEV_CITY_TOURS,
     host: process.env.HOST,
     port: process.env.PORT,
     command,

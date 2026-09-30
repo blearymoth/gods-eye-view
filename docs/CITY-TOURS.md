@@ -5,6 +5,20 @@ Director scenes (Scenes panel → pick a tour → START, or say "play the Rome
 tour"), generated from a compact list of landmark stops in
 `src/scenes/packs/cityTours.js`.
 
+## Turning tours on
+
+Tours are **opt-in and off by default**: nothing is added to anyone's Scenes
+list unless asked for.
+
+- Set `GEV_CITY_TOURS=1` in `.env` (see `.env.example`) and restart, or
+- in one browser, `localStorage.setItem('gev-city-tours', '1')` and reload
+  (`'0'` forces them off even when the build enables them).
+
+With tours on, existing saved projects gain the four scenes on next load (the
+Director's built-in-scene migration inserts each after the previous one).
+Turning tours off again does not delete scenes already in a saved project:
+they are the user's to keep or delete like any other scene.
+
 ## What a tour is
 
 ```js

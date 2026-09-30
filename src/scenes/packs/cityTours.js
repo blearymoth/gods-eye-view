@@ -11,6 +11,30 @@
  * To add a city: append a definition to CITY_TOURS. See docs/CITY-TOURS.md.
  */
 
+/** localStorage key for the city-tours switch (see readCityToursEnabled). */
+export const CITY_TOURS_STORAGE_KEY = 'gev-city-tours';
+
+/**
+ * Whether bundled city tours are installed into the Director project. Off by
+ * default: tours are opt-in content, so a fresh or existing install never
+ * gains scenes it did not ask for. `GEV_CITY_TOURS=1` turns them on for the
+ * build; a saved `gev-city-tours` of `1` or `0` in localStorage overrides it.
+ * Tours already saved in a project are the user's and stay either way.
+ */
+export function readCityToursEnabled(
+  storage = globalThis.localStorage,
+  envFlag = import.meta.env?.GEV_CITY_TOURS,
+) {
+  try {
+    const stored = storage?.getItem?.(CITY_TOURS_STORAGE_KEY);
+    if (stored === '1') return true;
+    if (stored === '0') return false;
+  } catch {
+    // private mode / missing storage
+  }
+  return envFlag === '1';
+}
+
 /** Metres of latitude per degree (WGS84 mean). */
 const METRES_PER_DEG_LAT = 111_320;
 

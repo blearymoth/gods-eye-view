@@ -4,7 +4,9 @@ import {
   CITY_TOURS,
   CITY_TOUR_RECIPES,
   cityTourStory,
+  CITY_TOURS_STORAGE_KEY,
   cityTourLegs,
+  readCityToursEnabled,
   cityTourToRecipe,
   isCityTourScene,
   lookAtPose,
@@ -14,7 +16,7 @@ import {
 } from './cityTours.js';
 import { recipeToScene } from '../project.js';
 import { parseSceneDocument } from '../../director/document.js';
-import { SCENE_RECIPES } from '../recipes.js';
+import { SCENE_RECIPES, createSceneRecipes } from '../recipes.js';
 
 function haversineM(a, b) {
   const toRad = (deg) => (deg * Math.PI) / 180;
@@ -182,20 +184,32 @@ test('shot framings realise their moves as distinct arrival and end poses', () =
   assert.equal(shotFraming({ ...stop, shot: 'nope' }, 0).type, 'orbit');
 });
 
-test('tours ship in the built-in recipe list after the public demos', () => {
-  const ids = SCENE_RECIPES.map((recipe) => recipe.id);
+const storage = (value) => ({ getItem: (key) => (key === CITY_TOURS_STORAGE_KEY ? value : null) });
+
+test('city tours are off unless switched on, and a saved choice wins over the build flag', () => {
+  assert.equal(readCityToursEnabled(storage(null), undefined), false);
+  assert.equal(readCityToursEnabled(storage(null), '0'), false);
+  assert.equal(readCityToursEnabled(storage(null), '1'), true);
+  assert.equal(readCityToursEnabled(storage('1'), '0'), true);
+  assert.equal(readCityToursEnabled(storage('0'), '1'), false);
+  assert.equal(readCityToursEnabled(storage('nonsense'), undefined), false);
+  const broken = { getItem: () => { throw new Error('blocked'); } };
+  assert.equal(readCityToursEnabled(broken, '1'), true);
+  assert.equal(readCityToursEnabled(null, undefined), false);
+});
+
+test('the default recipe list carries no tours; opting in appends them after the public demos', () => {
+  const tourIds = CITY_TOUR_RECIPES.map((recipe) => recipe.id);
+  assert.deepEqual(SCENE_RECIPES.filter((recipe) => tourIds.includes(recipe.id)), []);
+  assert.deepEqual(createSceneRecipes({ cityTours: false }).map((r) => r.id), SCENE_RECIPES.map((r) => r.id));
+  const ids = createSceneRecipes({ cityTours: true }).map((recipe) => recipe.id);
   CITY_TOUR_RECIPES.forEach((recipe, index) => {
     assert.equal(
       recipe.installAlongsideSceneId,
       index === 0 ? 'omniscience-pullback' : CITY_TOUR_RECIPES[index - 1].id,
     );
     assert.equal(recipe.installAlongsideFallbackSceneId, undefined);
-  });
-  for (const recipe of CITY_TOUR_RECIPES) {
     assert.ok(ids.includes(recipe.id), `${recipe.id} is not registered`);
-    assert.ok(
-      ids.indexOf(recipe.id) > ids.indexOf('omniscience-pullback'),
-      `${recipe.id} should follow the public demos`,
-    );
-  }
+    assert.ok(ids.indexOf(recipe.id) > ids.indexOf('omniscience-pullback'));
+  });
 });
