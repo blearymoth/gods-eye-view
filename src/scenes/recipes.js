@@ -4,6 +4,7 @@
  */
 
 import { expandNepalEvidencePack } from './nepalEvidencePack.js';
+import { CITY_TOUR_RECIPES, readCityToursEnabled } from './packs/cityTours.js';
 
 const BHOTE_KOSHI_NEPAL_BASE_RECIPE = Object.freeze({
   id: 'bhote-koshi-nepal-evidence-pack',
@@ -964,9 +965,19 @@ const PUBLIC_SCENE_RECIPES = [
   },
 ];
 
-/** Build the recipe list without mutating stored user-authored projects. */
-export function createSceneRecipes({ localDemoRecipes = EVENT_RECIPES } = {}) {
-  return [...localDemoRecipes, ...PUBLIC_SCENE_RECIPES];
+/**
+ * Build the recipe list without mutating stored user-authored projects.
+ * Bundled city tours are opt-in (`GEV_CITY_TOURS`, default off).
+ */
+export function createSceneRecipes({
+  localDemoRecipes = EVENT_RECIPES,
+  cityTours = readCityToursEnabled(),
+} = {}) {
+  return [
+    ...localDemoRecipes,
+    ...PUBLIC_SCENE_RECIPES,
+    ...(cityTours ? CITY_TOUR_RECIPES : []),
+  ];
 }
 
 export const SCENE_RECIPES = createSceneRecipes();

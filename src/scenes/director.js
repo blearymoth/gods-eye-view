@@ -155,6 +155,12 @@ export class SceneDirector {
       onProgress: (progress) => this._setProgress(progress),
     });
     this._runIdleResolvers = new Set();
+    /**
+     * Readiness gates consulted before a shot's hold ends. Unlike media holds
+     * a gate that times out lets playback continue: it buys the view time to
+     * buffer, it never fails the run. @type {Set<Function>}
+     */
+    this._shotHoldGates = new Set();
     this._sceneSeekGeneration = 0;
     /** @type {Object|null} Telemetry accumulator for the current run */
     this._activeRun = null;
@@ -236,6 +242,7 @@ export class SceneDirector {
     this._interactions?.destroy();
     this._dataPacks?.destroy();
     this._controls?.destroy();
+    this._shotHoldGates.clear();
     this._state.destroy();
     this._destroyPromise = Promise.resolve().then(async () => {
       this.stopScene('Stopped');
@@ -2303,8 +2310,55 @@ export class SceneDirector {
     });
   }
 
-  /** Let an opt-in media owner finish playback and its fade before the next flight. */
+  /**
+   * Register a readiness gate: `(scene, shot) => { pending, maxWaitMs } | null`.
+   * Returning null opts the gate out of that shot. A pending gate extends the
+   * shot's hold until it clears or `maxWaitMs` passes, then playback continues.
+   * @returns {() => void} remover
+   */
+  registerShotHoldGate(gate) {
+    if (typeof gate !== 'function') throw new TypeError('Expected a gate function');
+    this._shotHoldGates.add(gate);
+    return () => this._shotHoldGates.delete(gate);
+  }
+
+  /** Wait past the shot's hold until every registered gate clears or times out. */
+  async _waitShotHoldGates(scene, shot, token) {
+    const gates = [...this._shotHoldGates]
+      .map((gate) => {
+        const initial = gate(scene, shot);
+        return initial
+          ? {
+              read: () => gate(scene, shot),
+              maxWaitMs: Math.min(30000, Math.max(0, Number(initial.maxWaitMs) || 0)),
+            }
+          : null;
+      })
+      .filter(Boolean);
+    if (!gates.length) return;
+    const began = Date.now();
+    while (!token.cancelled && !token.signal?.aborted) {
+      const elapsed = Date.now() - began;
+      const pending = gates.filter(
+        ({ read, maxWaitMs }) => elapsed < maxWaitMs && read()?.pending === true,
+      );
+      if (!pending.length) return;
+      await this._sleep(70, token);
+    }
+  }
+
+  /**
+   * Let an opt-in media owner finish playback and its fade before the next
+   * flight, then wait on any registered readiness gates.
+   */
   async _holdShot(scene, shot, token) {
+    // Called on bare objects by tests and adapters, so resolve the media hold
+    // through the prototype and treat gates as optional state.
+    await SceneDirector.prototype._holdShotMediaAndTimer.call(this, scene, shot, token);
+    if (this._shotHoldGates?.size) await this._waitShotHoldGates(scene, shot, token);
+  }
+
+  async _holdShotMediaAndTimer(scene, shot, token) {
     const readers = Object.entries(
       this._layerStatesForShot(scene, shot),
     ).flatMap(([id, state]) => {

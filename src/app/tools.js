@@ -4,6 +4,8 @@ import { initDrawTool } from '../annotations/drawTool.js';
 import { initImageryBoxTool } from '../ui/imageryBoxTool.js';
 import { createRecentImageryPanel } from '../ui/recentImagery.js';
 import { initGevVoiceCommands } from '../voice/gevRealtime.js';
+import { installCityTourPresenter } from '../scenes/packs/cityTourPresenter.js';
+import { overlayHost } from './layers/overlayHost.js';
 import { installScopeMask, destroyScopeMask } from '../scopeMask.js';
 import {
   installRenderGovernor,
@@ -39,6 +41,16 @@ export function createApplicationTools({
     .get('bhote-koshi-2026')
     ?.module.attachSceneController(sceneDirector);
   defer(() => sceneDirector.destroy());
+  // Bundled city tours (opt-in) caption, route and narrate their stops.
+  defer(
+    installCityTourPresenter({
+      director: sceneDirector,
+      viewer,
+      tileset,
+      dataManager,
+      overlayHost,
+    }),
+  );
   onSceneDirector?.(sceneDirector);
   const annotations = initAnnotations({
     viewer,

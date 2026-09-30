@@ -1,5 +1,19 @@
 # Changelog
 
+- Guided city tours of Rome, Paris, Tokyo and London as opt-in bundled Director
+  scenes (off by default; `GEV_CITY_TOURS=1` installs them), generated from
+  landmark stops in `src/scenes/packs/cityTours.js`. Each stop performs an
+  authored camera move (orbit, truck, crane, push in, pull out, lock-off,
+  bird's eye, low angle); travel legs draw their route on the map (foot, bike
+  and car from `/api/route`, a dashed line for rail); each stop is captioned,
+  narrated by an open voice session, and marks callouts that light up as the
+  narrator says them. See `docs/CITY-TOURS.md`.
+- Director: `SceneDirector.registerShotHoldGate` lets a feature hold a shot
+  until it is ready (bounded). City tours use it to keep arrivals holding until
+  80% of the view's 3D tiles are in, and while a tour runs they preload flight
+  destinations, coarsen distant tiles and park enabled data layers, restoring
+  them afterwards.
+
 - Public Overpass instances are no longer used by default. Street Traffic
   roads come from TomTom flow tiles, OpenFreeMap vector tiles, or both, chosen
   on the layer row (TomTom / OSM / Hybrid) or with `?trafficRoads=`. With a

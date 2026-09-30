@@ -16,6 +16,7 @@ export default defineConfig(({ command, mode }) => {
     plugins: [...localProviderPlugins(), apiNotFoundPlugin()],
     googleApiKey: process.env.GOOGLE_MAPS_API_KEY,
     cesiumToken: process.env.CESIUM_ION_TOKEN,
+    cityTours: process.env.GEV_CITY_TOURS,
     host: process.env.HOST,
     port: process.env.PORT,
     command,

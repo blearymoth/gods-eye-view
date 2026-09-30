@@ -1,5 +1,14 @@
 # God's Eye View Current State
 
+## City tours
+
+- Rome, Paris, Tokyo and London ship as opt-in (`GEV_CITY_TOURS=1`, off by
+  default) Director scenes generated from landmark stops
+  (`src/scenes/packs/cityTours.js`); each stop is an arrival shot plus an
+  authored camera move. `cityTourPresenter.js` captions the stop's story,
+  draws travel legs, gates arrivals on tile buffering and lights callouts as
+  the narrator says them. Authoring: `docs/CITY-TOURS.md`.
+
 ## Cyber HUD — September 23, 2026
 
 Display > HUD > Layout includes Cyber, also available through the HUD voice

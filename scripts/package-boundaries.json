@@ -727,7 +727,9 @@
       "src/director/authoring.js",
       "src/scenes/sharing.js",
       "src/ui/sceneSharing.js",
-      "src/data/cameraArrival.js"
+      "src/data/cameraArrival.js",
+      "src/scenes/packs/cityTours.js",
+      "src/scenes/packs/cityTourPresenter.js"
     ],
     "external": ["cesium"]
   },
@@ -2027,7 +2029,9 @@
       "src/sources/requestDeadline.js",
       "src/data/local_data/osm_military_names/names.json",
       "src/layers/installations/namedMarkers.js",
-      "src/data/infrastructureOverlayEntry.js"
+      "src/data/infrastructureOverlayEntry.js",
+      "src/scenes/packs/cityTours.js",
+      "src/scenes/packs/cityTourPresenter.js"
     ],
     "external": [
       "hls.js",

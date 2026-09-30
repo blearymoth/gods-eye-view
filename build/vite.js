@@ -7,6 +7,7 @@ export function createBrowserViteConfig({
   publicDir,
   googleApiKey,
   cesiumToken,
+  cityTours = '0',
   host = 'localhost',
   port = 4173,
   command,
@@ -47,6 +48,8 @@ export function createBrowserViteConfig({
     define: {
       'import.meta.env.GOOGLE_MAPS_API_KEY': JSON.stringify(googleApiKey),
       'import.meta.env.CESIUM_ION_TOKEN': JSON.stringify(cesiumToken),
+      // Bundled city tours are opt-in; GEV_CITY_TOURS=1 installs them.
+      'import.meta.env.GEV_CITY_TOURS': JSON.stringify(cityTours === '1' ? '1' : '0'),
     },
     build: { chunkSizeWarningLimit: 1500 },
   };

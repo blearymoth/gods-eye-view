@@ -1,0 +1,138 @@
+/* City tour caption: shown only while a bundled tour shot is running. */
+#city-tour-caption {
+  position: fixed;
+  left: 50%;
+  bottom: max(11vh, calc(env(safe-area-inset-bottom, 0px) + 72px));
+  z-index: 106;
+  width: min(560px, calc(100vw - 32px));
+  padding: 12px 18px 14px;
+  transform: translate(-50%, 12px);
+  opacity: 0;
+  transition:
+    opacity 260ms ease,
+    transform 260ms ease;
+  color: var(--text-primary);
+  background: rgba(6, 10, 16, 0.62);
+  border: 1px solid rgba(0, 212, 255, 0.28);
+  border-radius: 14px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  pointer-events: none;
+}
+
+#city-tour-caption.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+#city-tour-caption .city-tour-caption-city {
+  display: inline-block;
+  margin-right: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+#city-tour-caption .city-tour-caption-title {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #bff4ff;
+}
+
+#city-tour-caption .city-tour-caption-story {
+  margin: 6px 0 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+body.ui-clean-view #city-tour-caption,
+body.recording-mode #city-tour-caption {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  #city-tour-caption {
+    bottom: max(14vh, calc(env(safe-area-inset-bottom, 0px) + 96px));
+    padding: 10px 14px 12px;
+  }
+
+  #city-tour-caption .city-tour-caption-story {
+    font-size: 13px;
+  }
+}
+
+#city-tour-caption .city-tour-caption-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+#city-tour-caption .city-tour-caption-city {
+  margin-right: 0;
+}
+
+#city-tour-caption .city-tour-caption-shot {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+#city-tour-caption .city-tour-caption-shot:empty {
+  display: none;
+}
+
+#city-tour-caption[data-kind='travel'] .city-tour-caption-title {
+  color: var(--text-primary);
+}
+
+/* Buffering: shown while less than 80% of the view's requested tiles are in. */
+#city-tour-caption .city-tour-caption-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+#city-tour-caption .city-tour-caption-loading[hidden] {
+  display: none;
+}
+
+#city-tour-caption .city-tour-caption-loading-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  animation: city-tour-loading-pulse 1.2s ease-in-out infinite;
+}
+
+#city-tour-caption .city-tour-caption-loading-track {
+  flex: 1 1 auto;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(0, 212, 255, 0.16);
+}
+
+#city-tour-caption .city-tour-caption-loading-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--accent);
+  transition: width 200ms ease;
+}
+
+@keyframes city-tour-loading-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
